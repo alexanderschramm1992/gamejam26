@@ -18,13 +18,21 @@ let carX = 0
 let carY = 0
 let angle = 0
 let velocity = 0
+let drift = 0
 const keysPressed = new Set<string>()
+let tireTracks: Array<{x: number; y: number; alpha: number}> = []
 
 const maxSpeed = 6
 const acceleration = 0.18
 const brakeAcceleration = 0.25
 const friction = 0.95
+const handbrakeMultiplier = 0.7
 const turnSpeed = 0.04
+const driftGain = 0.25
+const driftDecay = 0.92
+const maxDrift = 2
+const trackFade = 0.02
+const trackSize = 2.5
 
 const carImage = new Image()
 carImage.src = new URL('../assets/car.png', import.meta.url).href
@@ -47,15 +55,23 @@ function initializeCar() {
 
 function handleKeyDown(event: KeyboardEvent) {
   const key = event.key.toLowerCase()
+  const code = event.code.toLowerCase()
 
-  if (['w', 'a', 's', 'd'].includes(key)) {
-    keysPressed.add(key)
+  if (['w', 'a', 's', 'd'].includes(key) || code === 'space') {
+    keysPressed.add(code === 'space' ? 'space' : key)
     event.preventDefault()
   }
 }
 
 function handleKeyUp(event: KeyboardEvent) {
-  keysPressed.delete(event.key.toLowerCase())
+  const key = event.key.toLowerCase()
+  const code = event.code.toLowerCase()
+
+  if (code === 'space') {
+    keysPressed.delete('space')
+  } else {
+    keysPressed.delete(key)
+  }
 }
 
 function draw(timestamp: number) {
@@ -80,9 +96,11 @@ function updatePhysics() {
 
   const forwardInput = (keysPressed.has('s') ? 1 : 0) - (keysPressed.has('w') ? 1 : 0)
   const turnInput = (keysPressed.has('a') ? 1 : 0) - (keysPressed.has('d') ? 1 : 0)
+  const handbrake = keysPressed.has('space')
 
-  applyTurning(turnInput)
+  applyTurning(turnInput, handbrake)
   applyAcceleration(forwardInput)
+  applyHandbrake(handbrake, turnInput)
   applyMovement()
   enforceBounds()
 }
@@ -98,17 +116,39 @@ function applyAcceleration(forwardInput: number) {
   velocity = Math.max(-maxSpeed / 2, Math.min(maxSpeed, velocity))
 }
 
-function applyTurning(turnInput: number) {
+function applyHandbrake(active: boolean, turnInput: number) {
+  if (!active) {
+    drift *= driftDecay
+    if (Math.abs(drift) < 0.05) drift = 0
+    return
+  }
+
+  velocity *= handbrakeMultiplier
+  drift += turnInput * driftGain * Math.sign(velocity || 1)
+  drift *= driftDecay
+  drift = Math.max(-maxDrift, Math.min(maxDrift, drift))
+  addTireTracks()
+
+  if (Math.abs(velocity) < 0.15) {
+    velocity = 0
+  }
+}
+
+function applyTurning(turnInput: number, handbrake: boolean) {
   if (turnInput === 0 || Math.abs(velocity) < 0.1) return
 
-  angle += turnInput * turnSpeed * Math.sign(velocity)
+  const effectiveTurnSpeed = handbrake ? turnSpeed * 1.5 : turnSpeed
+  angle += turnInput * effectiveTurnSpeed * Math.sign(velocity)
 }
 
 function applyMovement() {
-  const dx = Math.cos(angle) * velocity
-  const dy = Math.sin(angle) * velocity
-  carX += dx
-  carY += dy
+  const forwardX = Math.cos(angle) * velocity
+  const forwardY = Math.sin(angle) * velocity
+  const driftX = Math.cos(angle + Math.PI / 2) * drift
+  const driftY = Math.sin(angle + Math.PI / 2) * drift
+
+  carX += forwardX + driftX
+  carY += forwardY + driftY
 }
 
 function enforceBounds() {
@@ -119,6 +159,7 @@ function enforceBounds() {
 function renderScene() {
   ctx.clearRect(0, 0, canvas.width, canvas.height)
 
+  renderTireTracks()
   if (!carLoaded) return
 
   ctx.save()
@@ -126,6 +167,43 @@ function renderScene() {
   ctx.rotate(angle)
   ctx.drawImage(carImage, -carWidth / 2, -carHeight / 2, carWidth, carHeight)
   ctx.restore()
+}
+
+function addTireTracks() {
+  if (Math.abs(velocity) < 0.1) return
+
+  const centerX = carX + carWidth / 2
+  const centerY = carY + carHeight / 2
+  const forwardX = Math.cos(angle)
+  const forwardY = Math.sin(angle)
+  const sideX = -forwardY
+  const sideY = forwardX
+  const rearDistance = carHeight * -0.45
+  const wheelSpacing = carWidth * 0.2
+
+  const leftX = centerX - forwardX * rearDistance + sideX * wheelSpacing
+  const leftY = centerY - forwardY * rearDistance + sideY * wheelSpacing
+  const rightX = centerX - forwardX * rearDistance - sideX * wheelSpacing
+  const rightY = centerY - forwardY * rearDistance - sideY * wheelSpacing
+
+  tireTracks.push({ x: leftX, y: leftY, alpha: 1 })
+  tireTracks.push({ x: rightX, y: rightY, alpha: 1 })
+}
+
+function renderTireTracks() {
+  if (tireTracks.length === 0) return
+
+  ctx.save()
+  for (const track of tireTracks) {
+    ctx.fillStyle = `rgba(20, 20, 20, ${track.alpha})`
+    ctx.beginPath()
+    ctx.ellipse(track.x, track.y, trackSize, trackSize / 2, 0, 0, Math.PI * 2)
+    ctx.fill()
+    track.alpha -= trackFade
+  }
+  ctx.restore()
+
+  tireTracks = tireTracks.filter((track) => track.alpha > 0)
 }
 
 
