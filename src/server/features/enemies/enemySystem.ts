@@ -12,7 +12,7 @@ export interface EnemyBrain {
   waypoints: Vec2[];
 }
 
-const enemyCycle: EnemyKind[] = ["rammer", "drainer", "gunner", "rammer", "drainer"];
+const enemyCycle: EnemyKind[] = ["rammer", "gunner", "drainer", "gunner", "rammer", "drainer"];
 const ENEMY_PROJECTILE_SPEED = 700;
 
 const getLookaheadWaypoint = (waypoints: Vec2[], speed: number, fallback: Vec2): Vec2 => {
@@ -94,6 +94,8 @@ export const spawnEnemy = (id: string, stage: number, players: PlayerState[]): E
     vx: 0,
     vy: 0,
     speed: 0,
+    driveVelocity: 0,
+    drift: 0,
     health: archetype.maxHealth,
     maxHealth: archetype.maxHealth,
     battery: archetype.maxBattery,

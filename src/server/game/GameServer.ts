@@ -54,6 +54,7 @@ export class GameServer {
   private entityCounter = 0;
   private eventCounter = 0;
   private spawnTimer = 0;
+  private enemySpawnCounter = 0;
 
   constructor(io: SocketServer) {
     this.io = io;
@@ -97,6 +98,8 @@ export class GameServer {
       vx: 0,
       vy: 0,
       speed: 0,
+      driveVelocity: 0,
+      drift: 0,
       health: GAME_CONFIG.player.maxHealth,
       maxHealth: GAME_CONFIG.player.maxHealth,
       battery: GAME_CONFIG.player.maxBattery,
@@ -305,7 +308,8 @@ export class GameServer {
     }
 
     this.spawnTimer = GAME_CONFIG.enemies.spawnInterval;
-    const enemy = spawnEnemy(this.allocateId("enemy"), this.tickCounter + currentCount, livePlayers);
+    this.enemySpawnCounter += 1;
+    const enemy = spawnEnemy(this.allocateId("enemy"), this.enemySpawnCounter, livePlayers);
     this.enemies.push(enemy);
     this.enemyBrains.set(enemy.id, { repathTimer: 0, waypoints: [] });
   }
@@ -333,6 +337,8 @@ export class GameServer {
     player.vx = 0;
     player.vy = 0;
     player.speed = 0;
+    player.driveVelocity = 0;
+    player.drift = 0;
   }
 
   private respawnPlayer(player: PlayerState): void {
@@ -344,6 +350,8 @@ export class GameServer {
     player.vx = 0;
     player.vy = 0;
     player.speed = 0;
+    player.driveVelocity = 0;
+    player.drift = 0;
     player.health = player.maxHealth;
     player.battery = player.maxBattery;
     player.weaponCooldown = 0;
