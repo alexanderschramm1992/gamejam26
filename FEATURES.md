@@ -157,8 +157,8 @@
 
 ### Kartenprinzip
 - Keine generische Rasterkarte.
-- Karte ist vorgegeben und handgebaut.
 - Straßenstruktur soll wie eine echte Stadt oder glaubwürdige urbane Zone wirken.
+- Zeichne ein paar straßen und gebäude durch die man nicht durchfahren kann
 
 ### Kartenanforderungen
 - Kurven, Hauptstraßen, Nebenstraßen, Kreuzungen und Engstellen.
