@@ -68,6 +68,10 @@ export class GameServer {
     this.io = io;
   }
 
+  private isPlayerGhost(player: PlayerState): boolean {
+    return !player.destroyed && player.ghostTimer > 0;
+  }
+
   public start(): void {
     const stepMs = 1000 / GAME_CONFIG.tickRate;
     setInterval(() => this.tick(stepMs / 1000), stepMs);
@@ -140,6 +144,7 @@ export class GameServer {
       connected: true,
       score: 0,
       respawnTimer: 0,
+      ghostTimer: 0,
       lastProcessedInput: 0
     };
   }
@@ -194,6 +199,7 @@ export class GameServer {
       const input = this.inputs.get(player.id) ?? neutralInput;
       player.lastProcessedInput = input.seq;
       player.weaponCooldown = Math.max(0, player.weaponCooldown - dt);
+      player.ghostTimer = Math.max(0, player.ghostTimer - dt);
 
       if (player.destroyed) {
         player.respawnTimer = Math.max(0, player.respawnTimer - dt);
@@ -217,7 +223,7 @@ export class GameServer {
         chargeMultiplier: this.adminSettings.chargeRateMultiplier
       });
       const hitWall = resolveWorldCollision(player);
-      if (hitWall) {
+      if (hitWall && !this.isPlayerGhost(player)) {
         player.health -= Math.max(2, player.speed * playerTuning.collisionDamage * 0.5);
       }
 
@@ -254,6 +260,13 @@ export class GameServer {
       for (let otherIndex = index + 1; otherIndex < entities.length; otherIndex += 1) {
         const a = entities[index];
         const b = entities[otherIndex];
+        const skipEnemyGhostContact =
+          (a.type === "player" && b.type === "enemy" && this.isPlayerGhost(a)) ||
+          (a.type === "enemy" && b.type === "player" && this.isPlayerGhost(b));
+        if (skipEnemyGhostContact) {
+          continue;
+        }
+
         const combinedRadius = a.radius + b.radius;
         const currentDistance = distance(a, b);
         if (currentDistance === 0 || currentDistance >= combinedRadius) {
@@ -314,7 +327,7 @@ export class GameServer {
       }
 
       const player = livePlayers.find((candidate) => candidate.id === enemy.targetPlayerId && !candidate.destroyed);
-      if (!player) {
+      if (!player || this.isPlayerGhost(player)) {
         continue;
       }
 
@@ -427,6 +440,7 @@ export class GameServer {
   private destroyPlayer(player: PlayerState): void {
     player.destroyed = true;
     player.respawnTimer = GAME_CONFIG.player.respawnDelay;
+    player.ghostTimer = 0;
     player.vx = 0;
     player.vy = 0;
     player.speed = 0;
@@ -447,6 +461,7 @@ export class GameServer {
     player.maxBattery = this.adminSettings.playerMaxBattery;
     player.battery = player.maxBattery;
     player.weaponCooldown = 0;
+    player.ghostTimer = GAME_CONFIG.player.respawnGhostDuration;
     this.pushEvent("player-respawn", `${player.name} redeployed`, player.x, player.y, player.id);
   }
 

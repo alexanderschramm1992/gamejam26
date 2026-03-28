@@ -66,6 +66,7 @@ export interface PlayerState extends VehicleState {
   connected: boolean;
   score: number;
   respawnTimer: number;
+  ghostTimer: number;
   lastProcessedInput: number;
 }
 

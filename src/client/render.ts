@@ -100,17 +100,18 @@ const drawVehicle = (
   customImage?: HTMLImageElement | null
 ): void => {
   const sprite = customImage ?? carImage;
+  const isGhostPlayer = entity.type === "player" && entity.ghostTimer > 0;
 
   if (sprite) {
     ctx.save();
     ctx.translate(visual.x, visual.y);
     ctx.rotate(visual.rotation);
     ctx.shadowBlur = 18;
-    ctx.shadowColor = color;
+    ctx.shadowColor = isGhostPlayer ? "rgba(255, 255, 255, 0.85)" : color;
     // Draw image centered at origin, rotated 90 degrees
     const imgHeight = entity.radius * 3.6;
     const imgWidth = imgHeight * (sprite.width / sprite.height);
-    ctx.globalAlpha = 0.95;
+    ctx.globalAlpha = isGhostPlayer ? 0.45 : 0.95;
     ctx.save();
     ctx.rotate(Math.PI / 2);
     ctx.drawImage(sprite, -imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight);
@@ -122,8 +123,9 @@ const drawVehicle = (
     ctx.translate(visual.x, visual.y);
     ctx.rotate(visual.rotation);
     ctx.shadowBlur = 18;
-    ctx.shadowColor = color;
+    ctx.shadowColor = isGhostPlayer ? "rgba(255, 255, 255, 0.85)" : color;
     ctx.fillStyle = color;
+    ctx.globalAlpha = isGhostPlayer ? 0.45 : 1;
     ctx.beginPath();
     ctx.roundRect(-entity.radius, -entity.radius * 0.7, entity.radius * 2, entity.radius * 1.4, 8);
     ctx.fill();
@@ -133,10 +135,11 @@ const drawVehicle = (
     ctx.fill();
     ctx.fillStyle = "rgba(255,255,255,0.95)";
     ctx.fillRect(entity.radius * 0.2, -3, entity.radius * 0.7, 6);
+    ctx.globalAlpha = 1;
     ctx.restore();
   }
 
-  ctx.fillStyle = "rgba(244, 248, 255, 0.95)";
+  ctx.fillStyle = isGhostPlayer ? "rgba(244, 248, 255, 0.72)" : "rgba(244, 248, 255, 0.95)";
   ctx.font = "12px Trebuchet MS";
   ctx.textAlign = "center";
   ctx.fillText(label, visual.x, visual.y - entity.radius - 18);
@@ -146,7 +149,7 @@ const drawVehicle = (
   const batteryRatio = clamp(entity.battery / entity.maxBattery, 0, 1);
   ctx.fillStyle = "rgba(5, 16, 24, 0.7)";
   ctx.fillRect(visual.x - barWidth / 2, visual.y - entity.radius - 12, barWidth, 4);
-  ctx.fillStyle = entity.type === "player" ? "#58f0ff" : "#ff6767";
+  ctx.fillStyle = entity.type === "player" ? (isGhostPlayer ? "rgba(88, 240, 255, 0.55)" : "#58f0ff") : "#ff6767";
   ctx.fillRect(visual.x - barWidth / 2, visual.y - entity.radius - 12, barWidth * healthRatio, 4);
   ctx.fillStyle = "rgba(5, 16, 24, 0.7)";
   ctx.fillRect(visual.x - barWidth / 2, visual.y - entity.radius - 6, barWidth, 3);
@@ -375,6 +378,9 @@ export const renderGame = (
     if (localPlayer.destroyed) {
       ctx.fillStyle = "#ff6767";
       ctx.fillText(`Respawn in ${localPlayer.respawnTimer.toFixed(1)}s`, 42, height - 20);
+    } else if (localPlayer.ghostTimer > 0) {
+      ctx.fillStyle = "rgba(244, 248, 255, 0.9)";
+      ctx.fillText(`Ghost mode ${localPlayer.ghostTimer.toFixed(1)}s`, 42, height - 20);
     } else if (localPlayer.charging) {
       ctx.fillStyle = "#ffcf69";
       ctx.fillText("Charging on station", 42, height - 20);

@@ -243,7 +243,8 @@ export const spawnEnemy = (
   const hotspot = CITY_MAP.enemyHotspots[stage % CITY_MAP.enemyHotspots.length];
   const kind = enemyCycle[stage % enemyCycle.length];
   const archetype = ENEMY_ARCHETYPES[kind];
-  const fallbackTarget = players.find((player) => !player.destroyed);
+  const fallbackTarget = players.find((player) => !player.destroyed && player.ghostTimer <= 0)
+    ?? players.find((player) => !player.destroyed);
   const spawnAngle = randomBetween(0, Math.PI * 2);
   const spawnDistance = randomBetween(20, hotspot.radius - 10);
   const maxHealth = archetype.maxHealth * healthMultiplier;
@@ -295,7 +296,9 @@ export const updateEnemies = (
       continue;
     }
 
-    const target = livePlayers.reduce((best, player) =>
+    const targetPool = livePlayers.filter((player) => player.ghostTimer <= 0);
+    const targetCandidates = targetPool.length > 0 ? targetPool : livePlayers;
+    const target = targetCandidates.reduce((best, player) =>
       distance(enemy, player) < distance(enemy, best) ? player : best
     );
     enemy.targetPlayerId = target.id;

@@ -96,7 +96,7 @@ export const updateProjectiles = (
       }
     } else {
       for (const player of players) {
-        if (player.destroyed || distance(projectile, player) > projectile.radius + player.radius) {
+        if (player.destroyed || player.ghostTimer > 0 || distance(projectile, player) > projectile.radius + player.radius) {
           continue;
         }
         player.health -= projectile.damage;

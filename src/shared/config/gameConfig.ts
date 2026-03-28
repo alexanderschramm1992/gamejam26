@@ -43,6 +43,7 @@ export const GAME_CONFIG = {
     maxHealth: 120,
     maxBattery: 100,
     respawnDelay: 4,
+    respawnGhostDuration: 2,
     fireCooldown: 0.2,
     projectileSpeed: 860,
     projectileDamage: 18
