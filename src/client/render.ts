@@ -24,7 +24,7 @@ export const loadCarAsset = (): Promise<void> => {
       resolve();
       return;
     }
-    console.log("[Asset] Starting to load car.png from /assets/car.png");
+    console.log("[Asset] Starting to load car.png from /assets/cars/car.png");
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
@@ -36,7 +36,7 @@ export const loadCarAsset = (): Promise<void> => {
       console.error("[Asset] Failed to load car asset:", error);
       reject(new Error("Failed to load car asset"));
     };
-    img.src = "/assets/car.png";
+    img.src = "/assets/cars/car.png";
     console.log("[Asset] Image src set, loading...");
   });
 
