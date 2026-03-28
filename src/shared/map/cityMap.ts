@@ -48,12 +48,12 @@ export const CITY_MAP: WorldMapData = {
     { id: "boost-3", x: 1480, y: 700, width: 380, height: 120, heading: 0 }
   ],
   dispatchPoints: [
-    { id: "dispatch-central", label: "Dispatch", x: 240, y: 220, radius: 84 }
+    { id: "dispatch-central", label: "Sushi Hub", x: 240, y: 1320, radius: 84 }
   ],
   deliveryPoints: [
-    { id: "delivery-harbor", label: "Harbor Slices", x: 1900, y: 220, radius: 82 },
+    { id: "delivery-docks", label: "Old Port Tower", x: 240, y: 220, radius: 82 },
+    { id: "delivery-harbor", label: "Harbor Plaza", x: 1900, y: 220, radius: 82 },
     { id: "delivery-arcade", label: "Arcade Hub", x: 1280, y: 760, radius: 82 },
-    { id: "delivery-oldtown", label: "Old Town", x: 240, y: 1320, radius: 82 },
     { id: "delivery-solar", label: "Solar Market", x: 1900, y: 1320, radius: 82 }
   ],
   enemyHotspots: [
@@ -63,10 +63,10 @@ export const CITY_MAP: WorldMapData = {
   ],
   navigationNodes,
   playerSpawns: [
-    { x: 190, y: 260 },
-    { x: 255, y: 320 },
-    { x: 315, y: 260 },
-    { x: 380, y: 320 }
+    { x: 185, y: 1280 },
+    { x: 245, y: 1340 },
+    { x: 305, y: 1280 },
+    { x: 365, y: 1340 }
   ]
 };
 

@@ -1,4 +1,4 @@
-# Pizza Panic Protocol
+# Sushi Sprint Protocol
 
 Frisch gebautes Koop-Multiplayer-Actionspiel nach den aktuellen Vorgaben aus `FEATURES.md`, `ARCHITECTURE.md` und `AGENTS.md`.
 
@@ -8,7 +8,7 @@ Frisch gebautes Koop-Multiplayer-Actionspiel nach den aktuellen Vorgaben aus `FE
 - Handgebaute Stadtkarte mit Straßen, Gebäuden, Ladestationen, Dispatch, Lieferzielen und Boost-Spuren.
 - 1 bis 4 Spieler im Koop.
 - Akku, Drift-/Trägheits-Fahrverhalten, Projektilkampf und Zombie-Diesel-Gegner.
-- Liefermissions-Loop mit Eskalation und synchronisiertem HUD.
+- Sushi-Liefermissions-Loop mit Eskalation und synchronisiertem HUD.
 
 ## Projektstruktur
 - `src/server`: Serverlogik und Simulation.
