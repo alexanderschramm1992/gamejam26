@@ -65,6 +65,17 @@ export const GAME_CONFIG = {
   physics: {
     turnSpeedScaling: 0.5, // Wendekreis-Faktor: je höher, desto mehr beeinflusst Geschwindigkeit den Wendekreis
   },
+  vehiclePhysics: {
+    crippledBatteryFactor: 0.35,
+    lowBatteryFactor: 0.72,
+    offRoadFactor: 0.7,
+    brakingTurnSpeedMultiplier: 1.2,
+    brakeDragStrength: 0.015,
+    brakeDragMin: 0.5,
+    brakeDragMax: 0.96,
+    handbrakeFrameFactor: 0.35,
+    minimumTurningVelocity: 8
+  },
   combat: {
     projectileRadius: 5,
     projectileLife: 1.05,

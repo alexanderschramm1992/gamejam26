@@ -17,9 +17,13 @@ export const stepVehicle = (
   { dt, input, tuning, lowBattery, crippledBattery, offRoad, boosted }: VehicleStepOptions
 ): void => {
   const frameFactor = dt * 60;
-  const lowBatteryFactor = crippledBattery ? 0.35 : lowBattery ? 0.72 : 1;
+  const lowBatteryFactor = crippledBattery
+    ? GAME_CONFIG.vehiclePhysics.crippledBatteryFactor
+    : lowBattery
+      ? GAME_CONFIG.vehiclePhysics.lowBatteryFactor
+      : 1;
   const boostFactor = boosted ? GAME_CONFIG.boost.speedMultiplier : 1;
-  const roadFactor = offRoad ? 0.7 : 1;
+  const roadFactor = offRoad ? GAME_CONFIG.vehiclePhysics.offRoadFactor : 1;
   const maxForward = tuning.maxForwardSpeed * boostFactor * roadFactor;
   const maxReverse = tuning.maxReverseSpeed * roadFactor;
   const forwardInput = clamp(input.throttle, -1, 1);
@@ -60,12 +64,14 @@ const applyTurning = (
   maxForward: number,
   dt: number
 ): void => {
-  if (steer === 0 || Math.abs(vehicle.driveVelocity) < 8) {
+  if (steer === 0 || Math.abs(vehicle.driveVelocity) < GAME_CONFIG.vehiclePhysics.minimumTurningVelocity) {
     return;
   }
 
-  const effectiveTurnSpeed = braking ? tuning.turnSpeed * 1.2 : tuning.turnSpeed;
-  
+  const effectiveTurnSpeed = braking
+    ? tuning.turnSpeed * GAME_CONFIG.vehiclePhysics.brakingTurnSpeedMultiplier
+    : tuning.turnSpeed;
+
   // Geschwindigkeitsabhängiger Wendekreis: Je höher die Geschwindigkeit, desto größer der Wendekreis
   const speedFactor = clamp(Math.abs(vehicle.driveVelocity) / Math.max(80, maxForward), 0, 1);
   const gripFactor = 1 - speedFactor * GAME_CONFIG.physics.turnSpeedScaling;
@@ -85,9 +91,16 @@ const applyBrake = (
     return;
   }
 
-  const brakeDrag = clamp(1 - tuning.brakeStrength * 0.015 * frameFactor, 0.5, 0.96);
+  const brakeDrag = clamp(
+    1 - tuning.brakeStrength * GAME_CONFIG.vehiclePhysics.brakeDragStrength * frameFactor,
+    GAME_CONFIG.vehiclePhysics.brakeDragMin,
+    GAME_CONFIG.vehiclePhysics.brakeDragMax
+  );
   vehicle.driveVelocity *= brakeDrag;
-  vehicle.driveVelocity *= Math.pow(tuning.handbrakeMultiplier, frameFactor * 0.35);
+  vehicle.driveVelocity *= Math.pow(
+    tuning.handbrakeMultiplier,
+    frameFactor * GAME_CONFIG.vehiclePhysics.handbrakeFrameFactor
+  );
 };
 
 const applyMovement = (
