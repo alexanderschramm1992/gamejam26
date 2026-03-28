@@ -21,7 +21,8 @@ import {
   desiredEnemyCount,
   spawnEnemy,
   type EnemyBrain,
-  updateEnemies
+  updateEnemies,
+  createEnemyBrain
 } from "../features/enemies/enemySystem";
 import { resolveWorldCollision, getSurfaceInfo } from "../features/map/worldQueries";
 import {
@@ -286,8 +287,13 @@ export class GameServer {
   private applyEnemyContact(player: PlayerState, enemy: EnemyState, impactDamage: number): void {
     const archetype = ENEMY_ARCHETYPES[enemy.kind];
     const damageMultiplier = this.getEnemyDamageMultiplier(enemy.kind);
-    player.health -= impactDamage + archetype.contactDamage * 0.35 * damageMultiplier;
     enemy.health -= impactDamage * 0.45;
+
+    if (enemy.kind === "drainer") {
+      return;
+    }
+
+    player.health -= impactDamage + archetype.contactDamage * 0.35 * damageMultiplier;
 
     if (enemy.kind === "rammer") {
       player.health -= archetype.contactDamage * 0.45 * damageMultiplier;
@@ -399,7 +405,7 @@ export class GameServer {
       this.adminSettings.enemyHealthMultiplier
     );
     this.enemies.push(enemy);
-    this.enemyBrains.set(enemy.id, { repathTimer: 0, waypoints: [] });
+    this.enemyBrains.set(enemy.id, createEnemyBrain(enemy));
   }
 
   private cleanupDestroyedEntities(): void {
