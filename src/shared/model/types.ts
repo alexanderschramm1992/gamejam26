@@ -68,7 +68,7 @@ export interface PlayerState extends VehicleState {
   lastProcessedInput: number;
 }
 
-export type EnemyKind = "scout" | "brute" | "gunner";
+export type EnemyKind = "rammer" | "gunner" | "drainer";
 
 export interface EnemyState extends VehicleState {
   type: "enemy";
@@ -119,7 +119,8 @@ export type WorldEventType =
   | "mission-failed"
   | "player-respawn"
   | "charge"
-  | "boost";
+  | "boost"
+  | "drain";
 
 export interface WorldEvent {
   id: number;

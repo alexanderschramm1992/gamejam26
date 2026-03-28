@@ -1,5 +1,5 @@
 import type { Server as SocketServer, Socket } from "socket.io";
-import { GAME_CONFIG, PLAYER_COLORS } from "../../shared/config/gameConfig";
+import { ENEMY_ARCHETYPES, GAME_CONFIG, PLAYER_COLORS } from "../../shared/config/gameConfig";
 import { CITY_MAP } from "../../shared/map/cityMap";
 import type {
   EnemyState,
@@ -226,14 +226,41 @@ export class GameServer {
 
         const impactDamage = Math.max(0, (a.speed + b.speed) * 0.018);
         if (a.type === "player" && b.type === "enemy") {
-          a.health -= impactDamage + 4;
-          b.health -= impactDamage * 0.6;
+          this.applyEnemyContact(a, b, impactDamage);
         } else if (a.type === "enemy" && b.type === "player") {
-          b.health -= impactDamage + 4;
-          a.health -= impactDamage * 0.6;
+          this.applyEnemyContact(b, a, impactDamage);
         }
       }
     }
+  }
+
+  private applyEnemyContact(player: PlayerState, enemy: EnemyState, impactDamage: number): void {
+    const archetype = ENEMY_ARCHETYPES[enemy.kind];
+    player.health -= impactDamage + archetype.contactDamage * 0.35;
+    enemy.health -= impactDamage * 0.45;
+
+    if (enemy.kind === "rammer") {
+      player.health -= archetype.contactDamage * 0.45;
+      enemy.health -= impactDamage * 0.1;
+      this.pushEvent("hit", `${enemy.kind} slammed ${player.name}`, player.x, player.y, player.id);
+      return;
+    }
+
+    if (enemy.kind === "drainer") {
+      if (enemy.weaponCooldown <= 0) {
+        const drainAmount = Math.min(player.battery, archetype.batteryDrain);
+        if (drainAmount > 0) {
+          player.battery -= drainAmount;
+          enemy.battery = Math.min(enemy.maxBattery, enemy.battery + drainAmount);
+          enemy.health = Math.min(enemy.maxHealth, enemy.health + drainAmount * 0.18);
+          enemy.weaponCooldown = archetype.fireCooldown;
+          this.pushEvent("drain", `${enemy.kind} drained ${drainAmount.toFixed(0)} battery`, player.x, player.y, player.id);
+        }
+      }
+      return;
+    }
+
+    this.pushEvent("hit", `${enemy.kind} clipped ${player.name}`, player.x, player.y, player.id);
   }
 
   private updateMission(dt: number): void {

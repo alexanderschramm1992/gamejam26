@@ -247,7 +247,13 @@ export const renderGame = (
   for (const enemy of snapshot.enemies) {
     const visual = visuals.enemies.get(enemy.id);
     if (visual) {
-      drawVehicle(ctx, visual, enemy, enemy.kind === "brute" ? "#ff8b5c" : enemy.kind === "gunner" ? "#ff6767" : "#ff9d5d", enemy.kind.toUpperCase());
+      drawVehicle(
+        ctx,
+        visual,
+        enemy,
+        enemy.kind === "rammer" ? "#ff8b5c" : enemy.kind === "gunner" ? "#ff6767" : "#74f5b1",
+        enemy.kind === "rammer" ? "RAMMER" : enemy.kind === "gunner" ? "GUNNER" : "DRAINER"
+      );
     }
   }
   for (const player of snapshot.players) {

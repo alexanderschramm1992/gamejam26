@@ -21,6 +21,7 @@ export interface EnemyArchetype extends VehicleTuning {
   projectileDamage: number;
   fireCooldown: number;
   preferredRange: number;
+  batteryDrain: number;
 }
 
 export const PLAYER_COLORS = ["#58f0ff", "#ffa84d", "#c1ff72", "#ff7ad1"];
@@ -80,61 +81,64 @@ export const GAME_CONFIG = {
 } as const;
 
 export const ENEMY_ARCHETYPES: Record<EnemyKind, EnemyArchetype> = {
-  scout: {
-    kind: "scout",
-    acceleration: 290,
-    reverseAcceleration: 120,
-    brakeStrength: 3.2,
-    turnSpeed: 2.75,
-    maxForwardSpeed: 400,
-    maxReverseSpeed: 120,
-    drag: 1.2,
-    grip: 5.8,
-    radius: 20,
-    collisionDamage: 0.02,
-    maxHealth: 46,
-    maxBattery: 1,
-    contactDamage: 12,
-    projectileDamage: 0,
-    fireCooldown: 0,
-    preferredRange: 80
-  },
-  brute: {
-    kind: "brute",
-    acceleration: 220,
+  rammer: {
+    kind: "rammer",
+    acceleration: 245,
     reverseAcceleration: 90,
-    brakeStrength: 2.7,
-    turnSpeed: 2.1,
-    maxForwardSpeed: 310,
+    brakeStrength: 2.4,
+    turnSpeed: 2.2,
+    maxForwardSpeed: 355,
     maxReverseSpeed: 90,
-    drag: 1.05,
-    grip: 4.6,
-    radius: 26,
-    collisionDamage: 0.024,
-    maxHealth: 82,
-    maxBattery: 1,
-    contactDamage: 20,
+    drag: 1.02,
+    grip: 4.7,
+    radius: 27,
+    collisionDamage: 0.028,
+    maxHealth: 88,
+    maxBattery: 10,
+    contactDamage: 24,
     projectileDamage: 0,
     fireCooldown: 0,
-    preferredRange: 60
+    preferredRange: 55,
+    batteryDrain: 0
   },
   gunner: {
     kind: "gunner",
-    acceleration: 235,
-    reverseAcceleration: 100,
-    brakeStrength: 2.8,
-    turnSpeed: 2.35,
-    maxForwardSpeed: 330,
-    maxReverseSpeed: 100,
-    drag: 1.1,
-    grip: 5,
+    acceleration: 225,
+    reverseAcceleration: 105,
+    brakeStrength: 3.1,
+    turnSpeed: 2.45,
+    maxForwardSpeed: 325,
+    maxReverseSpeed: 105,
+    drag: 1.12,
+    grip: 5.2,
     radius: 23,
     collisionDamage: 0.02,
     maxHealth: 58,
-    maxBattery: 1,
-    contactDamage: 10,
-    projectileDamage: 10,
-    fireCooldown: 1.1,
-    preferredRange: 280
+    maxBattery: 20,
+    contactDamage: 9,
+    projectileDamage: 11,
+    fireCooldown: 1.0,
+    preferredRange: 280,
+    batteryDrain: 0
+  },
+  drainer: {
+    kind: "drainer",
+    acceleration: 285,
+    reverseAcceleration: 130,
+    brakeStrength: 3.0,
+    turnSpeed: 2.85,
+    maxForwardSpeed: 390,
+    maxReverseSpeed: 125,
+    drag: 1.18,
+    grip: 5.9,
+    radius: 21,
+    collisionDamage: 0.019,
+    maxHealth: 52,
+    maxBattery: 100,
+    contactDamage: 8,
+    projectileDamage: 0,
+    fireCooldown: 0.85,
+    preferredRange: 70,
+    batteryDrain: 18
   }
 };
