@@ -287,8 +287,13 @@ export class GameServer {
   private applyEnemyContact(player: PlayerState, enemy: EnemyState, impactDamage: number): void {
     const archetype = ENEMY_ARCHETYPES[enemy.kind];
     const damageMultiplier = this.getEnemyDamageMultiplier(enemy.kind);
-    player.health -= impactDamage + archetype.contactDamage * 0.35 * damageMultiplier;
     enemy.health -= impactDamage * 0.45;
+
+    if (enemy.kind === "drainer") {
+      return;
+    }
+
+    player.health -= impactDamage + archetype.contactDamage * 0.35 * damageMultiplier;
 
     if (enemy.kind === "rammer") {
       player.health -= archetype.contactDamage * 0.45 * damageMultiplier;
