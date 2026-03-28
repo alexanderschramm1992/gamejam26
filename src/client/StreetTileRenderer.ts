@@ -202,9 +202,6 @@ export const drawTiledRoads = (ctx: CanvasRenderingContext2D): void => {
 
   // Draw intersections/curves on top
   drawIntersections(ctx);
-
-  // Optional: Draw road markings (lane dividers) if desired
-  drawRoadMarkings(ctx);
 };
 
 /**
@@ -235,35 +232,6 @@ const drawIntersections = (ctx: CanvasRenderingContext2D): void => {
     }
   }
 };
-
-/**
- * Draw road markings (lane dividers) on top of tiles
- */
-const drawRoadMarkings = (ctx: CanvasRenderingContext2D): void => {
-  ctx.strokeStyle = "rgba(255,255,255,0.06)";
-  ctx.lineWidth = 4;
-  for (const road of CITY_MAP.roads) {
-    if (road.width > road.height) {
-      const y = road.y + road.height / 2;
-      for (let x = road.x + 20; x < road.x + road.width - 20; x += 42) {
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(x + 20, y);
-        ctx.stroke();
-      }
-    } else {
-      const x = road.x + road.width / 2;
-      for (let y = road.y + 20; y < road.y + road.height - 20; y += 42) {
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(x, y + 20);
-        ctx.stroke();
-      }
-    }
-  }
-};
-
-
 
 
 
