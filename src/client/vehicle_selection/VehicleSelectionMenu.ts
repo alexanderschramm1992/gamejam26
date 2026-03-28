@@ -49,7 +49,7 @@ export class VehicleSelectionMenu {
 
     const title = document.createElement("h2");
     title.className = "vehicle-menu__title";
-    title.textContent = "Waehle deinen Audi";
+    title.textContent = "Waehle deinen Car";
 
     const intro = document.createElement("p");
     intro.className = "vehicle-menu__intro";

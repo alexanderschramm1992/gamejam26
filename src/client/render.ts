@@ -31,13 +31,35 @@ const loadImage = (src: string): Promise<HTMLImageElement> => {
   return next;
 };
 
+const ENEMY_CAR_ASSET_PATHS: Record<EnemyState["kind"], string> = {
+  rammer: "/assets/cars/truckRusted.png",
+  gunner: "/assets/cars/Mini_truckRusted.png",
+  drainer: "/assets/cars/DrainerVanRusted.png"
+};
+
+const enemyCarImages: Record<EnemyState["kind"], HTMLImageElement | null> = {
+  rammer: null,
+  gunner: null,
+  drainer: null
+};
+
 const formatPlayerLabel = (player: PlayerState, adminPlayerId: string | null): string => {
   const name = player.id === adminPlayerId ? `*${player.name}` : player.name;
   return name.toUpperCase();
 };
 
 export const loadCarAsset = async (): Promise<void> => {
-  carImage = await loadImage("/assets/cars/car.png");
+  const [defaultCar, rammerCar, gunnerCar, drainerCar] = await Promise.all([
+    loadImage("/assets/cars/car.png"),
+    loadImage(ENEMY_CAR_ASSET_PATHS.rammer),
+    loadImage(ENEMY_CAR_ASSET_PATHS.gunner),
+    loadImage(ENEMY_CAR_ASSET_PATHS.drainer)
+  ]);
+
+  carImage = defaultCar;
+  enemyCarImages.rammer = rammerCar;
+  enemyCarImages.gunner = gunnerCar;
+  enemyCarImages.drainer = drainerCar;
 };
 
 export const setLocalPlayerCarAsset = async (src: string): Promise<void> => {
@@ -264,7 +286,8 @@ export const renderGame = (
         visual,
         enemy,
         enemy.kind === "rammer" ? "#ff8b5c" : enemy.kind === "gunner" ? "#ff6767" : "#74f5b1",
-        enemy.kind === "rammer" ? "RAMMER" : enemy.kind === "gunner" ? "GUNNER" : "DRAINER"
+        enemy.kind === "rammer" ? "RAMMER" : enemy.kind === "gunner" ? "GUNNER" : "DRAINER",
+        enemyCarImages[enemy.kind]
       );
     }
   }
