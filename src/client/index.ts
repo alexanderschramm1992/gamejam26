@@ -16,7 +16,9 @@ import {
   type DrainBeamVisual,
   type VisualCache,
   type VisualEntity,
-  loadCarAsset, setLocalPlayerCarAsset
+  loadCarAsset,
+  setLocalPlayerCarAsset,
+  loadBuildingAssets
 } from "./render";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement | null;
@@ -286,6 +288,7 @@ updateInputEnabled();
 vehicleMenu.setOpen(true);
 loadCarAsset().catch((error) => console.warn("Car asset loading failed, using fallback:", error));
 loadStreetTiles().catch((error) => console.warn("Street tiles loading failed, using fallback:", error));
+loadBuildingAssets().catch((error) => console.warn("Building asset loading failed, using fallback:", error));
 void setLocalPlayerCarAsset(vehicleMenu.getSelectedVehicle().assetPath).catch((error: any) =>
   console.warn("Vehicle selection asset loading failed, using fallback:", error)
 );

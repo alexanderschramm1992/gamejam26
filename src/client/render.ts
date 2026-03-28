@@ -1,5 +1,5 @@
 import { CITY_MAP, findPoiById } from "../shared/map/cityMap";
-import type { EnemyState, GameSnapshot, PlayerState, ProjectileState } from "../shared/model/types";
+import type { EnemyState, GameSnapshot, PlayerState, ProjectileState, RectZone } from "../shared/model/types";
 import { clamp } from "../shared/utils/math";
 import type { AudioMixer } from "./AudioMixer";
 import { drawTiledRoads } from "./StreetTileRenderer";
@@ -65,6 +65,40 @@ export const loadCarAsset = async (): Promise<void> => {
 
 export const setLocalPlayerCarAsset = async (src: string): Promise<void> => {
   localPlayerCarImage = await loadImage(src);
+};
+
+const BUILDING_ASSET_PATHS = [
+  "/assets/buildings/DQ-SF_city_building_medium_02.png",
+  "/assets/buildings/DQ-SF_city_building_medium_06.png",
+  "/assets/buildings/DQ-SF_city_building_medium_08.png",
+  "/assets/buildings/DQ-SF_city_building_small_02.png",
+  "/assets/buildings/DQ-SF_city_building_small_05.png",
+  "/assets/buildings/DQ-SF_city_building_small_06.png",
+  "/assets/buildings/DQ-SF_city_building_small_07.png",
+  "/assets/buildings/DQ-SF_city_building_small_12.png"
+];
+
+let buildingImages: HTMLImageElement[] = [];
+
+const hashString = (value: string): number => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash * 31 + value.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+};
+
+export const loadBuildingAssets = async (): Promise<void> => {
+  buildingImages = await Promise.all(BUILDING_ASSET_PATHS.map(loadImage));
+};
+
+const getBuildingImage = (building: RectZone): HTMLImageElement | null => {
+  if (buildingImages.length === 0) {
+    return null;
+  }
+
+  const index = hashString(building.id || `${building.x}-${building.y}`) % buildingImages.length;
+  return buildingImages[index];
 };
 
 export interface VisualCache {
@@ -212,12 +246,17 @@ const drawWorldGeometry = (ctx: CanvasRenderingContext2D): void => {
   // Draw tiled roads instead of geometric shapes
   drawTiledRoads(ctx);
 
-  // Draw buildings
-  ctx.fillStyle = "#0a131b";
+  // Draw buildings with texture assets while preserving collision rectangles
   for (const building of CITY_MAP.buildings) {
+    const buildingImage = getBuildingImage(building);
     ctx.shadowBlur = 12;
     ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
-    ctx.fillRect(building.x, building.y, building.width, building.height);
+    if (buildingImage) {
+      ctx.drawImage(buildingImage, building.x, building.y, building.width, building.height);
+    } else {
+      ctx.fillStyle = "#0a131b";
+      ctx.fillRect(building.x, building.y, building.width, building.height);
+    }
     ctx.strokeStyle = "rgba(88, 240, 255, 0.08)";
     ctx.strokeRect(building.x, building.y, building.width, building.height);
   }
