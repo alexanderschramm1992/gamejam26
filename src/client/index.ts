@@ -4,7 +4,7 @@ import type { GameSnapshot } from "../shared/model/types";
 import { lerp, wrapAngle } from "../shared/utils/math";
 import { AudioMixer } from "./AudioMixer";
 import { InputController } from "./InputController";
-import { renderGame, type VisualCache, type VisualEntity } from "./render";
+import { renderGame, type VisualCache, type VisualEntity, loadCarAsset } from "./render";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement | null;
 const statusEl = document.getElementById("status");
@@ -143,4 +143,5 @@ const loop = (): void => {
 window.addEventListener("resize", resize);
 resize();
 updateOverlay();
+loadCarAsset().catch((error) => console.warn("Car asset loading failed, using fallback:", error));
 requestAnimationFrame(loop);
