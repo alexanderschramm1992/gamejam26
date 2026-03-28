@@ -21,7 +21,8 @@ import {
   desiredEnemyCount,
   spawnEnemy,
   type EnemyBrain,
-  updateEnemies
+  updateEnemies,
+  createEnemyBrain
 } from "../features/enemies/enemySystem";
 import { resolveWorldCollision, getSurfaceInfo } from "../features/map/worldQueries";
 import {
@@ -399,7 +400,7 @@ export class GameServer {
       this.adminSettings.enemyHealthMultiplier
     );
     this.enemies.push(enemy);
-    this.enemyBrains.set(enemy.id, { repathTimer: 0, waypoints: [] });
+    this.enemyBrains.set(enemy.id, createEnemyBrain(enemy));
   }
 
   private cleanupDestroyedEntities(): void {
