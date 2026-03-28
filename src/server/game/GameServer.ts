@@ -247,7 +247,7 @@ export class GameServer {
         this.team.deliveries += 1;
         this.team.score += this.mission.reward;
         this.team.danger += 1;
-        this.pushEvent("mission-completed", `${finisher.name} delivered the pizza`, finisher.x, finisher.y, finisher.id);
+        this.pushEvent("mission-completed", `${finisher.name} delivered the sushi set`, finisher.x, finisher.y, finisher.id);
         this.mission.status = "cooldown";
         this.mission.cooldownRemaining = GAME_CONFIG.mission.cooldown;
       } else if (this.mission.timeRemaining <= 0) {
