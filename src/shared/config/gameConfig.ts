@@ -61,6 +61,9 @@ export const GAME_CONFIG = {
     speedMultiplier: 1.18,
     duration: 1.2
   },
+  physics: {
+    turnSpeedScaling: 0.5, // Wendekreis-Faktor: je höher, desto mehr beeinflusst Geschwindigkeit den Wendekreis
+  },
   combat: {
     projectileRadius: 5,
     projectileLife: 1.05,

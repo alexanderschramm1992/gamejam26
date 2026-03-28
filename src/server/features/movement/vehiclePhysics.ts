@@ -65,7 +65,11 @@ const applyTurning = (
   }
 
   const effectiveTurnSpeed = braking ? tuning.turnSpeed * 1.2 : tuning.turnSpeed;
-  const gripFactor = clamp(Math.abs(vehicle.driveVelocity) / Math.max(80, maxForward), 0.2, 1);
+  
+  // Geschwindigkeitsabhängiger Wendekreis: Je höher die Geschwindigkeit, desto größer der Wendekreis
+  const speedFactor = clamp(Math.abs(vehicle.driveVelocity) / Math.max(80, maxForward), 0, 1);
+  const gripFactor = 1 - speedFactor * GAME_CONFIG.physics.turnSpeedScaling;
+  
   vehicle.rotation = wrapAngle(
     vehicle.rotation + steer * effectiveTurnSpeed * gripFactor * dt * Math.sign(vehicle.driveVelocity)
   );
