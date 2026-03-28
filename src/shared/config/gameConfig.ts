@@ -7,13 +7,8 @@ export interface VehicleTuning {
   turnSpeed: number;
   maxForwardSpeed: number;
   maxReverseSpeed: number;
-  drag: number;
-  grip: number;
   friction: number;
   handbrakeMultiplier: number;
-  driftGain: number;
-  driftDecay: number;
-  maxDrift: number;
   radius: number;
   collisionDamage: number;
 }
@@ -35,19 +30,14 @@ export const GAME_CONFIG = {
   tickRate: 30,
   arenaPadding: 80,
   player: {
-    acceleration: 300,
+    acceleration: 500,
     reverseAcceleration: 170,
     brakeStrength: 3.8,
     turnSpeed: 2.9,
     maxForwardSpeed: 460,
     maxReverseSpeed: 160,
-    drag: 1.25,
-    grip: 5.4,
     friction: 0.95,
     handbrakeMultiplier: 0.72,
-    driftGain: 10,
-    driftDecay: 0.92,
-    maxDrift: 155,
     radius: 22,
     collisionDamage: 0.018,
     maxHealth: 120,
@@ -99,13 +89,8 @@ export const ENEMY_ARCHETYPES: Record<EnemyKind, EnemyArchetype> = {
     turnSpeed: 2.2,
     maxForwardSpeed: 355,
     maxReverseSpeed: 90,
-    drag: 1.02,
-    grip: 4.7,
     friction: 0.955,
     handbrakeMultiplier: 0.76,
-    driftGain: 8,
-    driftDecay: 0.93,
-    maxDrift: 115,
     radius: 27,
     collisionDamage: 0.028,
     maxHealth: 88,
@@ -124,13 +109,8 @@ export const ENEMY_ARCHETYPES: Record<EnemyKind, EnemyArchetype> = {
     turnSpeed: 2.45,
     maxForwardSpeed: 325,
     maxReverseSpeed: 105,
-    drag: 1.12,
-    grip: 5.2,
     friction: 0.948,
     handbrakeMultiplier: 0.8,
-    driftGain: 7,
-    driftDecay: 0.93,
-    maxDrift: 95,
     radius: 23,
     collisionDamage: 0.02,
     maxHealth: 58,
@@ -149,13 +129,8 @@ export const ENEMY_ARCHETYPES: Record<EnemyKind, EnemyArchetype> = {
     turnSpeed: 2.85,
     maxForwardSpeed: 390,
     maxReverseSpeed: 125,
-    drag: 1.18,
-    grip: 5.9,
     friction: 0.952,
     handbrakeMultiplier: 0.78,
-    driftGain: 9,
-    driftDecay: 0.92,
-    maxDrift: 125,
     radius: 21,
     collisionDamage: 0.019,
     maxHealth: 52,

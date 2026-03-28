@@ -259,7 +259,6 @@ export const spawnEnemy = (
     vy: 0,
     speed: 0,
     driveVelocity: 0,
-    drift: 0,
     health: maxHealth,
     maxHealth,
     battery: archetype.maxBattery,

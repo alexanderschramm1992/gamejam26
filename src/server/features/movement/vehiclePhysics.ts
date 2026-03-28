@@ -27,8 +27,8 @@ export const stepVehicle = (
 
   applyAcceleration(vehicle, forwardInput, tuning, lowBatteryFactor, maxForward, maxReverse, dt, frameFactor);
   applyTurning(vehicle, input.steer, tuning, braking, maxForward, dt);
-  applyBrakeAndDrift(vehicle, braking, input.steer, tuning, frameFactor);
-  applyMovement(vehicle, tuning, offRoad, dt, frameFactor);
+  applyBrake(vehicle, braking, tuning, frameFactor);
+  applyMovement(vehicle, offRoad, dt);
 };
 
 const applyAcceleration = (
@@ -71,72 +71,33 @@ const applyTurning = (
   );
 };
 
-const applyBrakeAndDrift = (
+const applyBrake = (
   vehicle: VehicleState,
   braking: boolean,
-  steer: number,
   tuning: VehicleTuning,
   frameFactor: number
 ): void => {
   if (!braking) {
-    vehicle.drift *= Math.pow(tuning.driftDecay, frameFactor);
-    if (Math.abs(vehicle.drift) < 1) {
-      vehicle.drift = 0;
-    }
     return;
   }
 
   const brakeDrag = clamp(1 - tuning.brakeStrength * 0.015 * frameFactor, 0.5, 0.96);
   vehicle.driveVelocity *= brakeDrag;
   vehicle.driveVelocity *= Math.pow(tuning.handbrakeMultiplier, frameFactor * 0.35);
-
-  if (Math.abs(vehicle.driveVelocity) < 8) {
-    vehicle.driveVelocity = 0;
-    vehicle.drift = 0;
-    return;
-  }
-
-  if (Math.abs(steer) < 0.05) {
-    vehicle.drift *= Math.pow(tuning.driftDecay, frameFactor);
-    if (Math.abs(vehicle.drift) < 1) {
-      vehicle.drift = 0;
-    }
-    return;
-  }
-
-  vehicle.drift += steer * tuning.driftGain * (frameFactor / 60) * Math.sign(vehicle.driveVelocity);
-  vehicle.drift *= Math.pow(tuning.driftDecay, frameFactor * 0.7);
-
-  const driftCap = Math.min(tuning.maxDrift, Math.abs(vehicle.driveVelocity) * 0.45 + 18);
-  vehicle.drift = clamp(vehicle.drift, -driftCap, driftCap);
 };
 
 const applyMovement = (
   vehicle: VehicleState,
-  tuning: VehicleTuning,
   offRoad: boolean,
-  dt: number,
-  frameFactor: number
+  dt: number
 ): void => {
   const forward = fromAngle(vehicle.rotation);
-  const lateral = fromAngle(vehicle.rotation + Math.PI / 2);
   const forwardX = forward.x * vehicle.driveVelocity;
   const forwardY = forward.y * vehicle.driveVelocity;
-  const driftX = lateral.x * vehicle.drift;
-  const driftY = lateral.y * vehicle.drift;
 
-  vehicle.vx = forwardX + driftX;
-  vehicle.vy = forwardY + driftY;
+  vehicle.vx = forwardX;
+  vehicle.vy = forwardY;
   vehicle.x += vehicle.vx * dt;
   vehicle.y += vehicle.vy * dt;
   vehicle.speed = length({ x: vehicle.vx, y: vehicle.vy });
-
-  const surfaceDrag = Math.max(0.84, 1 - (tuning.drag + (offRoad ? 0.85 : 0.18)) * dt);
-  vehicle.driveVelocity *= surfaceDrag;
-
-  if (!offRoad && !vehicle.charging) {
-    vehicle.drift *= Math.max(0.8, 1 - tuning.grip * 0.0025 * frameFactor);
-  } else {
-    vehicle.drift *= 0.96;
-  }
-}
+};

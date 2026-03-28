@@ -128,7 +128,6 @@ export class GameServer {
       vy: 0,
       speed: 0,
       driveVelocity: 0,
-      drift: 0,
       health: GAME_CONFIG.player.maxHealth,
       maxHealth: GAME_CONFIG.player.maxHealth,
       battery: this.adminSettings.playerMaxBattery,
@@ -432,7 +431,6 @@ export class GameServer {
     player.vy = 0;
     player.speed = 0;
     player.driveVelocity = 0;
-    player.drift = 0;
   }
 
   private respawnPlayer(player: PlayerState): void {
@@ -445,7 +443,6 @@ export class GameServer {
     player.vy = 0;
     player.speed = 0;
     player.driveVelocity = 0;
-    player.drift = 0;
     player.health = player.maxHealth;
     player.maxBattery = this.adminSettings.playerMaxBattery;
     player.battery = player.maxBattery;
@@ -575,13 +572,8 @@ export class GameServer {
       turnSpeed: base.turnSpeed * steeringMultiplier,
       maxForwardSpeed: base.maxForwardSpeed * speedMultiplier,
       maxReverseSpeed: base.maxReverseSpeed * (0.72 + speedMultiplier * 0.28),
-      drag: clamp(base.drag / Math.max(0.7, speedMultiplier * 0.92), 0.75, 1.8),
-      grip: base.grip * frictionMultiplier,
       friction: clamp(base.friction - (frictionMultiplier - 1) * 0.035, 0.82, 0.985),
       handbrakeMultiplier: clamp(base.handbrakeMultiplier - (brakeMultiplier - 1) * 0.08, 0.48, 0.9),
-      driftGain: base.driftGain / Math.sqrt(Math.max(0.55, frictionMultiplier)),
-      driftDecay: clamp(base.driftDecay + (1 - frictionMultiplier) * 0.02, 0.88, 0.96),
-      maxDrift: base.maxDrift / Math.sqrt(Math.max(0.55, frictionMultiplier)),
       radius: base.radius,
       collisionDamage: base.collisionDamage
     };

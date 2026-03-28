@@ -48,7 +48,6 @@ export interface VehicleState {
   vy: number;
   speed: number;
   driveVelocity: number;
-  drift: number;
   health: number;
   maxHealth: number;
   battery: number;
