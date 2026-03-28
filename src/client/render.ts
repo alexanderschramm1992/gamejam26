@@ -206,60 +206,6 @@ const drawWorldGeometry = (ctx: CanvasRenderingContext2D): void => {
   CITY_MAP.deliveryPoints.forEach((point) => glowPoi(point.x, point.y, point.radius * 0.38, "rgba(255, 122, 209, 0.14)", "#ff7ad1"));
 };
 
-const drawMinimap = (
-  ctx: CanvasRenderingContext2D,
-  snapshot: GameSnapshot,
-  localPlayer: PlayerState | undefined,
-  visuals: VisualCache,
-  width: number,
-  height: number
-): void => {
-  const mapWidth = 210;
-  const mapHeight = 146;
-  const x = width - mapWidth - 24;
-  const y = 24;
-  panel(ctx, x, y, mapWidth, mapHeight);
-  const scaleX = (mapWidth - 28) / CITY_MAP.width;
-  const scaleY = (mapHeight - 28) / CITY_MAP.height;
-
-  ctx.save();
-  ctx.translate(x + 14, y + 14);
-  ctx.fillStyle = "rgba(11, 26, 36, 0.95)";
-  ctx.fillRect(0, 0, mapWidth - 28, mapHeight - 28);
-  ctx.fillStyle = "rgba(24, 56, 75, 0.8)";
-  for (const road of CITY_MAP.roads) {
-    ctx.fillRect(road.x * scaleX, road.y * scaleY, road.width * scaleX, road.height * scaleY);
-  }
-  ctx.fillStyle = "rgba(4, 10, 15, 0.9)";
-  for (const building of CITY_MAP.buildings) {
-    ctx.fillRect(building.x * scaleX, building.y * scaleY, building.width * scaleX, building.height * scaleY);
-  }
-
-  const missionTarget = findPoiById(snapshot.mission.destinationId);
-  if (missionTarget) {
-    ctx.strokeStyle = snapshot.mission.status === "active" ? "#ffcf69" : "#ff7ad1";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(missionTarget.x * scaleX, missionTarget.y * scaleY, 7, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-
-  for (const enemy of snapshot.enemies) {
-    const visual = visuals.enemies.get(enemy.id);
-    if (!visual) continue;
-    ctx.fillStyle = "#ff6767";
-    ctx.fillRect(visual.x * scaleX - 2, visual.y * scaleY - 2, 4, 4);
-  }
-  for (const player of snapshot.players) {
-    const visual = visuals.players.get(player.id);
-    if (!visual) continue;
-    ctx.fillStyle = player.id === localPlayer?.id ? "#58f0ff" : player.color;
-    ctx.beginPath();
-    ctx.arc(visual.x * scaleX, visual.y * scaleY, player.id === localPlayer?.id ? 4 : 3, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.restore();
-};
 
 export const renderGame = (
   ctx: CanvasRenderingContext2D,
@@ -356,6 +302,4 @@ export const renderGame = (
       ctx.fillText("Charging on station", 42, height - 20);
     }
   }
-
-  drawMinimap(ctx, snapshot, localPlayer, visuals, width, height);
 };
