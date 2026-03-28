@@ -2,6 +2,7 @@ import { io, type Socket } from "socket.io-client";
 import type { ClientEvents, ServerEvents } from "../shared/network/protocol";
 import type { GameSnapshot } from "../shared/model/types";
 import { lerp, wrapAngle } from "../shared/utils/math";
+import { AdminMenu } from "./AdminMenu";
 import { AudioMixer } from "./AudioMixer";
 import { InputController } from "./InputController";
 import { renderGame, type VisualCache, type VisualEntity, loadCarAsset } from "./render";
@@ -22,6 +23,7 @@ if (!context) {
 const socket: Socket<ServerEvents, ClientEvents> = io();
 const input = new InputController();
 const audio = new AudioMixer();
+const adminMenu = new AdminMenu();
 const visuals: VisualCache = {
   players: new Map<string, VisualEntity>(),
   enemies: new Map<string, VisualEntity>(),
@@ -73,6 +75,11 @@ const syncVisualMap = <T extends { id: string; x: number; y: number; rotation?: 
   }
 };
 
+const setAdminMenuOpen = (open: boolean): void => {
+  adminMenu.setOpen(open);
+  input.setEnabled(!open);
+};
+
 const updateOverlay = (): void => {
   if (!snapshot) {
     statusEl.textContent = "Verbinde mit Server...";
@@ -89,7 +96,9 @@ const updateOverlay = (): void => {
   const playerText = player
     ? `${player.name} | hull ${player.health.toFixed(0)} | battery ${player.battery.toFixed(0)}`
     : "Spectating sync";
-  statusEl.textContent = `${missionText}\n${playerText}\nscore ${snapshot.team.score} | deliveries ${snapshot.team.deliveries} | danger ${snapshot.team.danger}`;
+  statusEl.textContent = `${missionText}
+${playerText}
+score ${snapshot.team.score} | deliveries ${snapshot.team.deliveries} | danger ${snapshot.team.danger}`;
 
   const freshEvents = snapshot.recentEvents.filter((event) => event.id > lastRenderedEvent);
   if (freshEvents.length > 0) {
@@ -112,12 +121,36 @@ socket.on("hello", ({ playerId }) => {
   localPlayerId = playerId;
 });
 
+socket.on("adminState", (state) => {
+  adminMenu.applyState(state);
+});
+
 socket.on("snapshot", (nextSnapshot) => {
   snapshot = nextSnapshot;
   syncVisualMap(visuals.players, snapshot.players);
   syncVisualMap(visuals.enemies, snapshot.enemies);
   syncVisualMap(visuals.projectiles, snapshot.projectiles);
   updateOverlay();
+});
+
+adminMenu.onUpdate((patch) => {
+  socket.emit("adminUpdateSettings", patch);
+});
+adminMenu.onCloseRequest(() => {
+  setAdminMenuOpen(false);
+});
+
+window.addEventListener("keydown", (event) => {
+  if (event.code !== "Escape" || event.repeat) {
+    return;
+  }
+
+  setAdminMenuOpen(!adminMenu.isOpen());
+  event.preventDefault();
+});
+
+window.addEventListener("blur", () => {
+  setAdminMenuOpen(false);
 });
 
 const loop = (): void => {

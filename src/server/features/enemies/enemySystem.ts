@@ -1,6 +1,6 @@
 import { ENEMY_ARCHETYPES, GAME_CONFIG } from "../../../shared/config/gameConfig";
 import { CITY_MAP, findNearestNavigationNode, findPath } from "../../../shared/map/cityMap";
-import type { EnemyKind, EnemyState, PlayerInput, PlayerState, ProjectileState, Vec2 } from "../../../shared/model/types";
+import type { AdminSettings, EnemyKind, EnemyState, PlayerInput, PlayerState, ProjectileState, Vec2 } from "../../../shared/model/types";
 import { angleOf, distance, randomBetween, wrapAngle } from "../../../shared/utils/math";
 import { fireEnemyProjectile } from "../combat/combatSystem";
 import { getSurfaceInfo, resolveWorldCollision } from "../map/worldQueries";
@@ -76,13 +76,19 @@ const makeInput = (
   };
 };
 
-export const spawnEnemy = (id: string, stage: number, players: PlayerState[]): EnemyState => {
+export const spawnEnemy = (
+  id: string,
+  stage: number,
+  players: PlayerState[],
+  healthMultiplier: number
+): EnemyState => {
   const hotspot = CITY_MAP.enemyHotspots[stage % CITY_MAP.enemyHotspots.length];
   const kind = enemyCycle[stage % enemyCycle.length];
   const archetype = ENEMY_ARCHETYPES[kind];
   const fallbackTarget = players.find((player) => !player.destroyed);
   const spawnAngle = randomBetween(0, Math.PI * 2);
   const spawnDistance = randomBetween(20, hotspot.radius - 10);
+  const maxHealth = archetype.maxHealth * healthMultiplier;
 
   return {
     id,
@@ -96,8 +102,8 @@ export const spawnEnemy = (id: string, stage: number, players: PlayerState[]): E
     speed: 0,
     driveVelocity: 0,
     drift: 0,
-    health: archetype.maxHealth,
-    maxHealth: archetype.maxHealth,
+    health: maxHealth,
+    maxHealth,
     battery: archetype.maxBattery,
     maxBattery: archetype.maxBattery,
     radius: archetype.radius,
@@ -115,9 +121,12 @@ export const updateEnemies = (
   brains: Map<string, EnemyBrain>,
   now: number,
   dt: number,
+  settings: AdminSettings,
   allocateProjectileId: () => string
 ): ProjectileState[] => {
   const projectiles: ProjectileState[] = [];
+  const effectiveFireRate = Math.max(0.25, settings.enemyFireRateMultiplier);
+  const damageMultiplier = settings.enemyDamageMultiplier;
 
   for (const enemy of enemies) {
     if (enemy.destroyed) {
@@ -175,9 +184,9 @@ export const updateEnemies = (
     resolveWorldCollision(enemy);
 
     if (input.shoot && enemy.weaponCooldown <= 0 && archetype.projectileDamage > 0) {
-      projectiles.push(
-        fireEnemyProjectile(enemy, allocateProjectileId(), archetype.projectileDamage, archetype.fireCooldown)
-      );
+      const damage = archetype.projectileDamage * damageMultiplier;
+      const cooldown = archetype.fireCooldown <= 0 ? 0 : archetype.fireCooldown / effectiveFireRate;
+      projectiles.push(fireEnemyProjectile(enemy, allocateProjectileId(), damage, cooldown));
     }
 
     brains.set(enemy.id, brain);

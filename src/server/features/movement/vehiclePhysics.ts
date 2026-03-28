@@ -23,11 +23,11 @@ export const stepVehicle = (
   const maxForward = tuning.maxForwardSpeed * boostFactor * roadFactor;
   const maxReverse = tuning.maxReverseSpeed * roadFactor;
   const forwardInput = clamp(input.throttle, -1, 1);
-  const handbrake = input.brake;
+  const braking = input.brake;
 
   applyAcceleration(vehicle, forwardInput, tuning, lowBatteryFactor, maxForward, maxReverse, dt, frameFactor);
-  applyTurning(vehicle, input.steer, tuning, handbrake, maxForward, dt);
-  applyHandbrake(vehicle, handbrake, input.steer, tuning, dt, frameFactor);
+  applyTurning(vehicle, input.steer, tuning, braking, maxForward, dt);
+  applyBrakeAndDrift(vehicle, braking, input.steer, tuning, frameFactor);
   applyMovement(vehicle, tuning, offRoad, dt, frameFactor);
 };
 
@@ -56,7 +56,7 @@ const applyTurning = (
   vehicle: VehicleState,
   steer: number,
   tuning: VehicleTuning,
-  handbrake: boolean,
+  braking: boolean,
   maxForward: number,
   dt: number
 ): void => {
@@ -64,22 +64,21 @@ const applyTurning = (
     return;
   }
 
-  const effectiveTurnSpeed = handbrake ? tuning.turnSpeed * 1.35 : tuning.turnSpeed;
+  const effectiveTurnSpeed = braking ? tuning.turnSpeed * 1.2 : tuning.turnSpeed;
   const gripFactor = clamp(Math.abs(vehicle.driveVelocity) / Math.max(80, maxForward), 0.2, 1);
   vehicle.rotation = wrapAngle(
     vehicle.rotation + steer * effectiveTurnSpeed * gripFactor * dt * Math.sign(vehicle.driveVelocity)
   );
 };
 
-const applyHandbrake = (
+const applyBrakeAndDrift = (
   vehicle: VehicleState,
-  handbrake: boolean,
+  braking: boolean,
   steer: number,
   tuning: VehicleTuning,
-  dt: number,
   frameFactor: number
 ): void => {
-  if (!handbrake) {
+  if (!braking) {
     vehicle.drift *= Math.pow(tuning.driftDecay, frameFactor);
     if (Math.abs(vehicle.drift) < 1) {
       vehicle.drift = 0;
@@ -87,7 +86,9 @@ const applyHandbrake = (
     return;
   }
 
-  vehicle.driveVelocity *= Math.pow(tuning.handbrakeMultiplier, frameFactor * 0.55);
+  const brakeDrag = clamp(1 - tuning.brakeStrength * 0.015 * frameFactor, 0.5, 0.96);
+  vehicle.driveVelocity *= brakeDrag;
+  vehicle.driveVelocity *= Math.pow(tuning.handbrakeMultiplier, frameFactor * 0.35);
 
   if (Math.abs(vehicle.driveVelocity) < 8) {
     vehicle.driveVelocity = 0;
@@ -95,7 +96,15 @@ const applyHandbrake = (
     return;
   }
 
-  vehicle.drift += steer * tuning.driftGain * dt * Math.sign(vehicle.driveVelocity);
+  if (Math.abs(steer) < 0.05) {
+    vehicle.drift *= Math.pow(tuning.driftDecay, frameFactor);
+    if (Math.abs(vehicle.drift) < 1) {
+      vehicle.drift = 0;
+    }
+    return;
+  }
+
+  vehicle.drift += steer * tuning.driftGain * (frameFactor / 60) * Math.sign(vehicle.driveVelocity);
   vehicle.drift *= Math.pow(tuning.driftDecay, frameFactor * 0.7);
 
   const driftCap = Math.min(tuning.maxDrift, Math.abs(vehicle.driveVelocity) * 0.45 + 18);

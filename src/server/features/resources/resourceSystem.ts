@@ -8,16 +8,22 @@ export interface ResourceUpdateResult {
   boostedThisFrame: boolean;
 }
 
+export interface ResourceRuntimeOptions {
+  chargeMultiplier?: number;
+}
+
 export const updateVehicleResources = (
   vehicle: VehicleState,
   input: PlayerInput,
   surface: SurfaceInfo,
   dt: number,
-  now: number
+  now: number,
+  options: ResourceRuntimeOptions = {}
 ): ResourceUpdateResult => {
   vehicle.charging = false;
   let chargedThisFrame = false;
   let boostedThisFrame = false;
+  const chargeMultiplier = options.chargeMultiplier ?? 1;
 
   const throttleDrain = Math.max(0, input.throttle) * GAME_CONFIG.battery.throttleDrain;
   const speedDrain = (vehicle.speed / 300) * GAME_CONFIG.battery.speedDrain;
@@ -31,7 +37,7 @@ export const updateVehicleResources = (
     vehicle.charging = true;
     chargedThisFrame = true;
     vehicle.battery = clamp(
-      vehicle.battery + GAME_CONFIG.battery.chargeRate * dt,
+      vehicle.battery + GAME_CONFIG.battery.chargeRate * chargeMultiplier * dt,
       0,
       vehicle.maxBattery
     );
@@ -41,7 +47,7 @@ export const updateVehicleResources = (
     boostedThisFrame = true;
     vehicle.boostedUntil = Math.max(vehicle.boostedUntil, now + GAME_CONFIG.boost.duration);
     vehicle.battery = clamp(
-      vehicle.battery + GAME_CONFIG.battery.boostLaneChargeRate * dt,
+      vehicle.battery + GAME_CONFIG.battery.boostLaneChargeRate * chargeMultiplier * dt,
       0,
       vehicle.maxBattery
     );

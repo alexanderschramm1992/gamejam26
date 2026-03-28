@@ -1,7 +1,10 @@
 import type { Server as SocketServer, Socket } from "socket.io";
-import { ENEMY_ARCHETYPES, GAME_CONFIG, PLAYER_COLORS } from "../../shared/config/gameConfig";
+import { DEFAULT_ADMIN_SETTINGS, clampAdminSetting } from "../../shared/config/adminSettings";
+import { ENEMY_ARCHETYPES, GAME_CONFIG, PLAYER_COLORS, type VehicleTuning } from "../../shared/config/gameConfig";
 import { CITY_MAP } from "../../shared/map/cityMap";
 import type {
+  AdminSettings,
+  AdminSettingsPatch,
   EnemyState,
   GameSnapshot,
   MissionState,
@@ -12,7 +15,7 @@ import type {
   WorldEvent,
   WorldEventType
 } from "../../shared/model/types";
-import { distance } from "../../shared/utils/math";
+import { clamp, distance } from "../../shared/utils/math";
 import { updateProjectiles, firePlayerProjectile } from "../features/combat/combatSystem";
 import {
   desiredEnemyCount,
@@ -55,6 +58,8 @@ export class GameServer {
   private eventCounter = 0;
   private spawnTimer = 0;
   private enemySpawnCounter = 0;
+  private adminPlayerId: string | null = null;
+  private adminSettings: AdminSettings = { ...DEFAULT_ADMIN_SETTINGS };
 
   constructor(io: SocketServer) {
     this.io = io;
@@ -70,13 +75,31 @@ export class GameServer {
     this.players.set(player.id, player);
     this.inputs.set(player.id, neutralInput);
 
+    if (!this.adminPlayerId) {
+      this.adminPlayerId = player.id;
+    }
+
     socket.emit("hello", { playerId: player.id });
+    this.emitAdminState(socket);
+
     socket.on("input", (input: PlayerInput) => {
       this.inputs.set(player.id, input);
+    });
+    socket.on("adminUpdateSettings", (patch: AdminSettingsPatch) => {
+      if (player.id !== this.adminPlayerId) {
+        return;
+      }
+      this.applyAdminSettingsPatch(patch);
     });
     socket.on("disconnect", () => {
       this.players.delete(player.id);
       this.inputs.delete(player.id);
+
+      if (this.adminPlayerId === player.id) {
+        this.assignNextAdmin();
+      }
+
+      this.broadcastAdminState();
     });
 
     this.pushEvent("mission-accepted", `${player.name} entered the city.`, player.x, player.y, player.id);
@@ -102,8 +125,8 @@ export class GameServer {
       drift: 0,
       health: GAME_CONFIG.player.maxHealth,
       maxHealth: GAME_CONFIG.player.maxHealth,
-      battery: GAME_CONFIG.player.maxBattery,
-      maxBattery: GAME_CONFIG.player.maxBattery,
+      battery: this.adminSettings.playerMaxBattery,
+      maxBattery: this.adminSettings.playerMaxBattery,
       radius: GAME_CONFIG.player.radius,
       weaponCooldown: 0,
       boostedUntil: 0,
@@ -129,6 +152,7 @@ export class GameServer {
       this.enemyBrains,
       now,
       dt,
+      this.adminSettings,
       () => this.allocateId("projectile")
     );
     this.projectiles.push(...enemyShots);
@@ -148,6 +172,8 @@ export class GameServer {
   }
 
   private updatePlayers(dt: number, now: number): void {
+    const playerTuning = this.getPlayerTuning();
+
     for (const player of this.players.values()) {
       const input = this.inputs.get(player.id) ?? neutralInput;
       player.lastProcessedInput = input.seq;
@@ -165,20 +191,24 @@ export class GameServer {
       stepVehicle(player, {
         dt,
         input,
-        tuning: GAME_CONFIG.player,
+        tuning: playerTuning,
         lowBattery: player.battery <= GAME_CONFIG.battery.lowBatteryThreshold,
         crippledBattery: player.battery <= GAME_CONFIG.battery.crippledThreshold,
         offRoad: !surface.onRoad,
         boosted: now < player.boostedUntil
       });
-      const resourceResult = updateVehicleResources(player, input, surface, dt, now);
+      const resourceResult = updateVehicleResources(player, input, surface, dt, now, {
+        chargeMultiplier: this.adminSettings.chargeRateMultiplier
+      });
       const hitWall = resolveWorldCollision(player);
       if (hitWall) {
-        player.health -= Math.max(2, player.speed * GAME_CONFIG.player.collisionDamage * 0.5);
+        player.health -= Math.max(2, player.speed * playerTuning.collisionDamage * 0.5);
       }
 
       if (input.shoot && player.weaponCooldown <= 0 && player.battery > GAME_CONFIG.battery.shootDrain) {
-        this.projectiles.push(firePlayerProjectile(player, this.allocateId("projectile")));
+        this.projectiles.push(
+          firePlayerProjectile(player, this.allocateId("projectile"), this.adminSettings.playerDamageMultiplier)
+        );
         this.pushEvent("shot", `${player.name} fired`, player.x, player.y, player.id);
       }
 
@@ -239,11 +269,12 @@ export class GameServer {
 
   private applyEnemyContact(player: PlayerState, enemy: EnemyState, impactDamage: number): void {
     const archetype = ENEMY_ARCHETYPES[enemy.kind];
-    player.health -= impactDamage + archetype.contactDamage * 0.35;
+    const damageMultiplier = this.adminSettings.enemyDamageMultiplier;
+    player.health -= impactDamage + archetype.contactDamage * 0.35 * damageMultiplier;
     enemy.health -= impactDamage * 0.45;
 
     if (enemy.kind === "rammer") {
-      player.health -= archetype.contactDamage * 0.45;
+      player.health -= archetype.contactDamage * 0.45 * damageMultiplier;
       enemy.health -= impactDamage * 0.1;
       this.pushEvent("hit", `${enemy.kind} slammed ${player.name}`, player.x, player.y, player.id);
       return;
@@ -251,12 +282,12 @@ export class GameServer {
 
     if (enemy.kind === "drainer") {
       if (enemy.weaponCooldown <= 0) {
-        const drainAmount = Math.min(player.battery, archetype.batteryDrain);
+        const drainAmount = Math.min(player.battery, archetype.batteryDrain * damageMultiplier);
         if (drainAmount > 0) {
           player.battery -= drainAmount;
           enemy.battery = Math.min(enemy.maxBattery, enemy.battery + drainAmount);
           enemy.health = Math.min(enemy.maxHealth, enemy.health + drainAmount * 0.18);
-          enemy.weaponCooldown = archetype.fireCooldown;
+          enemy.weaponCooldown = archetype.fireCooldown / Math.max(0.25, this.adminSettings.enemyFireRateMultiplier);
           this.pushEvent("drain", `${enemy.kind} drained ${drainAmount.toFixed(0)} battery`, player.x, player.y, player.id);
         }
       }
@@ -301,15 +332,20 @@ export class GameServer {
     }
 
     const activeMission = this.mission.status === "active";
-    const desiredCount = desiredEnemyCount(livePlayers.length, this.team.danger, activeMission);
+    const desiredCount = this.getDesiredEnemyCount(livePlayers.length, activeMission);
     const currentCount = this.enemies.filter((enemy) => !enemy.destroyed).length;
     if (currentCount >= desiredCount) {
       return;
     }
 
-    this.spawnTimer = GAME_CONFIG.enemies.spawnInterval;
+    this.spawnTimer = this.getEnemySpawnInterval();
     this.enemySpawnCounter += 1;
-    const enemy = spawnEnemy(this.allocateId("enemy"), this.enemySpawnCounter, livePlayers);
+    const enemy = spawnEnemy(
+      this.allocateId("enemy"),
+      this.enemySpawnCounter,
+      livePlayers,
+      this.adminSettings.enemyHealthMultiplier
+    );
     this.enemies.push(enemy);
     this.enemyBrains.set(enemy.id, { repathTimer: 0, waypoints: [] });
   }
@@ -353,6 +389,7 @@ export class GameServer {
     player.driveVelocity = 0;
     player.drift = 0;
     player.health = player.maxHealth;
+    player.maxBattery = this.adminSettings.playerMaxBattery;
     player.battery = player.maxBattery;
     player.weaponCooldown = 0;
     this.pushEvent("player-respawn", `${player.name} redeployed`, player.x, player.y, player.id);
@@ -371,6 +408,125 @@ export class GameServer {
     };
 
     this.io.emit("snapshot", snapshot);
+  }
+
+  private emitAdminState(socket: Socket): void {
+    socket.emit("adminState", {
+      canEdit: socket.id === this.adminPlayerId,
+      adminPlayerId: this.adminPlayerId,
+      settings: { ...this.adminSettings }
+    });
+  }
+
+  private broadcastAdminState(): void {
+    for (const socket of this.io.sockets.sockets.values()) {
+      this.emitAdminState(socket);
+    }
+  }
+
+  private assignNextAdmin(): void {
+    const nextAdmin = this.players.keys().next();
+    this.adminPlayerId = nextAdmin.done ? null : nextAdmin.value;
+  }
+
+  private applyAdminSettingsPatch(patch: AdminSettingsPatch): void {
+    let changed = false;
+    let batteryChanged = false;
+    let healthChanged = false;
+    let spawnRulesChanged = false;
+
+    for (const [rawKey, rawValue] of Object.entries(patch)) {
+      if (!(rawKey in this.adminSettings) || typeof rawValue !== "number" || !Number.isFinite(rawValue)) {
+        continue;
+      }
+
+      const key = rawKey as keyof AdminSettings;
+      const nextValue = clampAdminSetting(key, rawValue);
+      if (this.adminSettings[key] === nextValue) {
+        continue;
+      }
+
+      this.adminSettings[key] = nextValue;
+      changed = true;
+      batteryChanged = batteryChanged || key === "playerMaxBattery";
+      healthChanged = healthChanged || key === "enemyHealthMultiplier";
+      spawnRulesChanged =
+        spawnRulesChanged || key === "enemyCountMultiplier" || key === "enemySpawnRateMultiplier";
+    }
+
+    if (!changed) {
+      return;
+    }
+
+    if (batteryChanged) {
+      this.syncPlayerBatteryCapacity();
+    }
+    if (healthChanged) {
+      this.syncEnemyHealth();
+    }
+    if (spawnRulesChanged) {
+      this.spawnTimer = Math.min(this.spawnTimer, this.getEnemySpawnInterval());
+    }
+
+    this.broadcastAdminState();
+  }
+
+  private syncPlayerBatteryCapacity(): void {
+    for (const player of this.players.values()) {
+      const fillRatio = player.maxBattery > 0 ? player.battery / player.maxBattery : 1;
+      player.maxBattery = this.adminSettings.playerMaxBattery;
+      player.battery = Math.min(player.maxBattery, Math.max(0, fillRatio) * player.maxBattery);
+    }
+  }
+
+  private syncEnemyHealth(): void {
+    for (const enemy of this.enemies) {
+      if (enemy.destroyed) {
+        continue;
+      }
+
+      const archetype = ENEMY_ARCHETYPES[enemy.kind];
+      const fillRatio = enemy.maxHealth > 0 ? enemy.health / enemy.maxHealth : 1;
+      enemy.maxHealth = archetype.maxHealth * this.adminSettings.enemyHealthMultiplier;
+      enemy.health = Math.min(enemy.maxHealth, Math.max(0, fillRatio) * enemy.maxHealth);
+    }
+  }
+
+  private getEnemySpawnInterval(): number {
+    return Math.max(0.35, GAME_CONFIG.enemies.spawnInterval / Math.max(0.2, this.adminSettings.enemySpawnRateMultiplier));
+  }
+
+  private getDesiredEnemyCount(playerCount: number, activeMission: boolean): number {
+    const baseCount = desiredEnemyCount(playerCount, this.team.danger, activeMission);
+    const scaledCount = baseCount * this.adminSettings.enemyCountMultiplier;
+    return Math.min(24, Math.max(1, Math.ceil(scaledCount)));
+  }
+
+  private getPlayerTuning(): VehicleTuning {
+    const base = GAME_CONFIG.player;
+    const accelerationMultiplier = this.adminSettings.playerAccelerationMultiplier;
+    const speedMultiplier = this.adminSettings.playerSpeedMultiplier;
+    const steeringMultiplier = this.adminSettings.playerSteeringMultiplier;
+    const brakeMultiplier = this.adminSettings.playerBrakeMultiplier;
+    const frictionMultiplier = this.adminSettings.playerFrictionMultiplier;
+
+    return {
+      acceleration: base.acceleration * accelerationMultiplier,
+      reverseAcceleration: base.reverseAcceleration * (0.8 + accelerationMultiplier * 0.2),
+      brakeStrength: base.brakeStrength * brakeMultiplier,
+      turnSpeed: base.turnSpeed * steeringMultiplier,
+      maxForwardSpeed: base.maxForwardSpeed * speedMultiplier,
+      maxReverseSpeed: base.maxReverseSpeed * (0.72 + speedMultiplier * 0.28),
+      drag: clamp(base.drag / Math.max(0.7, speedMultiplier * 0.92), 0.75, 1.8),
+      grip: base.grip * frictionMultiplier,
+      friction: clamp(base.friction - (frictionMultiplier - 1) * 0.035, 0.82, 0.985),
+      handbrakeMultiplier: clamp(base.handbrakeMultiplier - (brakeMultiplier - 1) * 0.08, 0.48, 0.9),
+      driftGain: base.driftGain / Math.sqrt(Math.max(0.55, frictionMultiplier)),
+      driftDecay: clamp(base.driftDecay + (1 - frictionMultiplier) * 0.02, 0.88, 0.96),
+      maxDrift: base.maxDrift / Math.sqrt(Math.max(0.55, frictionMultiplier)),
+      radius: base.radius,
+      collisionDamage: base.collisionDamage
+    };
   }
 
   private pushEvent(type: WorldEventType, text: string, x?: number, y?: number, entityId?: string): void {

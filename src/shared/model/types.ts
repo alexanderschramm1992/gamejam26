@@ -112,6 +112,30 @@ export interface TeamState {
   danger: number;
 }
 
+export interface AdminSettings {
+  enemyHealthMultiplier: number;
+  enemyDamageMultiplier: number;
+  enemyCountMultiplier: number;
+  enemySpawnRateMultiplier: number;
+  enemyFireRateMultiplier: number;
+  chargeRateMultiplier: number;
+  playerDamageMultiplier: number;
+  playerMaxBattery: number;
+  playerSteeringMultiplier: number;
+  playerSpeedMultiplier: number;
+  playerBrakeMultiplier: number;
+  playerFrictionMultiplier: number;
+  playerAccelerationMultiplier: number;
+}
+
+export type AdminSettingsPatch = Partial<AdminSettings>;
+
+export interface AdminState {
+  canEdit: boolean;
+  adminPlayerId: string | null;
+  settings: AdminSettings;
+}
+
 export type WorldEventType =
   | "shot"
   | "hit"

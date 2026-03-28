@@ -1,4 +1,4 @@
-import type { GameSnapshot, PlayerInput } from "../model/types";
+import type { AdminSettingsPatch, AdminState, GameSnapshot, PlayerInput } from "../model/types";
 
 export interface ServerHello {
   playerId: string;
@@ -6,9 +6,11 @@ export interface ServerHello {
 
 export interface ClientEvents {
   input: (input: PlayerInput) => void;
+  adminUpdateSettings: (patch: AdminSettingsPatch) => void;
 }
 
 export interface ServerEvents {
   hello: (payload: ServerHello) => void;
   snapshot: (payload: GameSnapshot) => void;
+  adminState: (payload: AdminState) => void;
 }

@@ -25,14 +25,18 @@ const projectileFrom = (
   };
 };
 
-export const firePlayerProjectile = (player: PlayerState, id: string): ProjectileState => {
+export const firePlayerProjectile = (
+  player: PlayerState,
+  id: string,
+  damageMultiplier = 1
+): ProjectileState => {
   player.weaponCooldown = GAME_CONFIG.player.fireCooldown;
   player.battery = Math.max(0, player.battery - GAME_CONFIG.battery.shootDrain);
   return projectileFrom(
     player,
     "player",
     id,
-    GAME_CONFIG.player.projectileDamage,
+    GAME_CONFIG.player.projectileDamage * damageMultiplier,
     GAME_CONFIG.player.projectileSpeed
   );
 };
@@ -98,7 +102,7 @@ export const updateProjectiles = (
         player.health -= projectile.damage;
         player.vx += projectile.vx * 0.03;
         player.vy += projectile.vy * 0.03;
-        pushEvent("hit", `Player hit`, player.x, player.y, player.id);
+        pushEvent("hit", "Player hit", player.x, player.y, player.id);
         consumed = true;
         break;
       }
