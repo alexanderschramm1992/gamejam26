@@ -59,13 +59,13 @@ export const GAME_CONFIG = {
   },
   battery: {
     idleDrain: 0.8,
-    throttleDrain: 4.5,
-    speedDrain: 1.8,
-    shootDrain: 3.5,
+    throttleDrain: 1.5,
+    speedDrain: 1,
+    shootDrain: 1,
     lowBatteryThreshold: 25,
     crippledThreshold: 8,
-    chargeRate: 22,
-    boostLaneChargeRate: 10
+    chargeRate: 50,
+    boostLaneChargeRate: 50
   },
   boost: {
     speedMultiplier: 1.18,

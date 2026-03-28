@@ -37,7 +37,7 @@ const formatPlayerLabel = (player: PlayerState, adminPlayerId: string | null): s
 };
 
 export const loadCarAsset = async (): Promise<void> => {
-  carImage = await loadImage("/assets/car.png");
+  carImage = await loadImage("/assets/cars/car.png");
 };
 
 export const setLocalPlayerCarAsset = async (src: string): Promise<void> => {
