@@ -55,6 +55,9 @@ export class AudioMixer {
         case "boost":
           this.playTone(760, 0.08, "triangle", 0.03);
           break;
+        case "drain":
+          this.playTone(210, 0.14, "sawtooth", 0.045);
+          break;
       }
     }
   }
