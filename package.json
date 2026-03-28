@@ -1,20 +1,26 @@
 {
   "name": "gamejam26",
+  "version": "0.1.0",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "description": "Fresh multiplayer pizza-delivery car combat game built from the current architecture and feature specs.",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "test": "vitest",
-    "server": "node server/server.mjs",
-    "start": "npm run build && node server/server.mjs"
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "webpack --mode production",
+    "build:server": "tsc -p tsconfig.server.json",
+    "typecheck": "tsc -p tsconfig.server.json --noEmit",
+    "start": "node dist/server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
-    "jsdom": "^27.0.1",
-    "typescript": "~5.9.3",
-    "vite": "^8.0.1",
-    "vitest": "^3.2.4"
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.13.14",
+    "ts-loader": "^9.5.2",
+    "typescript": "^5.8.2",
+    "webpack": "^5.99.5",
+    "webpack-cli": "^6.0.1"
   }
 }

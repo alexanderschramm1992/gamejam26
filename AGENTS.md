@@ -1,5 +1,7 @@
 # AGENTS.md
 
+du darfst nicht die features.md die agents.md und die architecture.md umschreiben !
+außerdem musst du sie befolgen
 ## Zweck
 - Diese Datei definiert Arbeitsregeln fuer KI-Agents und andere automatisierte Tools.
 - Ziel ist der Schutz bestehender Features, Dateien, Strukturen und Schnittstellen.

@@ -1,24 +1,15 @@
-# Client
+# Source
 
 ## Zweck
-- Browser-Client fuer Rendering, Eingabe, HUD und Audio.
-- Verbindet sich per WebSocket mit dem autoritativen Server.
+- Oberordner fuer die neue Spielimplementierung.
 
-## Dateien
-- `main.ts`: Einstieg, Input, Rendering, HUD und Netzwerkfluss.
-- `audio.ts`: Kleines WebAudio-Feedback fuer SFX und Hintergrundstimmung.
-- `types.ts`: Snapshot- und Event-Typen fuer den Client.
-- `style.css`: HUD-, Overlay- und Canvas-Layout.
+## Bereiche
+- `client`: Rendering, HUD, Input und Audio im Browser.
+- `server`: Autoritative Spiellogik und Networking.
+- `shared`: Gemeinsame Datenmodelle, Konfiguration und Kartendaten.
 
 ## Darf geaendert werden
-- Darstellung, HUD, Client-Eingabe, Audio und visuelles Feedback.
-- Client-seitige Hilfen, solange der Server autoritativ bleibt.
+- Additive Erweiterungen innerhalb der jeweiligen Zustaendigkeiten.
 
 ## Nicht stillschweigend aendern
-- Netzwerkvertrag mit dem Server.
-- Objektiv-Anzeige nur ueber den oberen Richtungs-Pfeil.
-- Feste POIs wie Spawnpunkt, Lieferziel und Ladestationen ohne Abstimmung.
-
-## Abhaengigkeiten
-- Snapshot-Daten vom Server.
-- Statische Weltdefinition aus `shared/game.js`.
+- Modulgrenzen nicht ohne guten Grund von Feature-orientiert auf Layer-orientiert umbauen.

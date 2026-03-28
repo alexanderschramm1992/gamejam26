@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pizza Panic Protocol</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Co-op delivery under siege</p>
+          <h1>Pizza Panic Protocol</h1>
+        </div>
+        <div class="legend">
+          <span><i class="legend-player"></i>Players</span>
+          <span><i class="legend-enemy"></i>Zombie rigs</span>
+          <span><i class="legend-boost"></i>Boost lane</span>
+        </div>
+      </header>
+      <main class="stage">
+        <canvas id="game"></canvas>
+        <aside class="overlay">
+          <section class="card status-card">
+            <h2>Status</h2>
+            <div id="status">Verbinde mit Server...</div>
+          </section>
+          <section class="card help-card">
+            <h2>Controls</h2>
+            <p>WASD / Arrows to drive, Space to fire, E to accept mission, Shift to brake and charge.</p>
+          </section>
+          <section class="card feed-card">
+            <h2>Dispatch Feed</h2>
+            <ul id="feed"></ul>
+          </section>
+        </aside>
+      </main>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="./bundle.js"></script>
+  </body>
+</html>

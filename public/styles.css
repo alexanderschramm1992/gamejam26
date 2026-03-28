@@ -1,0 +1,180 @@
+:root {
+  color-scheme: dark;
+  --bg-deep: #07111a;
+  --bg-mid: #0f2435;
+  --glow-cyan: #58f0ff;
+  --glow-lime: #c1ff72;
+  --glow-amber: #ffb347;
+  --danger: #ff6767;
+  --panel: rgba(7, 17, 26, 0.72);
+  --panel-line: rgba(88, 240, 255, 0.25);
+  --text: #f4f8ff;
+  --muted: #9bb3c5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top, rgba(88, 240, 255, 0.15), transparent 30%),
+    linear-gradient(180deg, #11283c 0%, #061018 100%);
+}
+
+body {
+  overflow: hidden;
+}
+
+.shell {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 24px;
+  padding: 18px 26px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(6, 16, 24, 0.96), rgba(6, 16, 24, 0.65));
+  backdrop-filter: blur(16px);
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: clamp(1.8rem, 3vw, 3rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--glow-amber);
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend i {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+}
+
+.legend-player {
+  background: var(--glow-cyan);
+}
+
+.legend-enemy {
+  background: var(--danger);
+}
+
+.legend-boost {
+  background: var(--glow-lime);
+}
+
+.stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr minmax(260px, 320px);
+  min-height: 0;
+}
+
+#game {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(193, 255, 114, 0.08), transparent 25%),
+    linear-gradient(180deg, rgba(17, 40, 60, 0.25), rgba(6, 16, 24, 0.3));
+}
+
+.overlay {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  background: linear-gradient(180deg, rgba(4, 10, 15, 0.86), rgba(4, 10, 15, 0.62));
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.card {
+  padding: 14px 16px;
+  border: 1px solid var(--panel-line);
+  border-radius: 18px;
+  background: var(--panel);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+}
+
+.card h2 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--glow-cyan);
+}
+
+#status {
+  color: var(--muted);
+  line-height: 1.5;
+  white-space: pre-line;
+}
+
+.help-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+#feed {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  display: grid;
+  gap: 8px;
+}
+
+@media (max-width: 980px) {
+  .stage {
+    grid-template-columns: 1fr;
+  }
+
+  .overlay {
+    position: absolute;
+    inset: auto 10px 10px 10px;
+    max-width: calc(100% - 20px);
+    background: none;
+    pointer-events: none;
+  }
+
+  .card {
+    pointer-events: auto;
+  }
+
+  .help-card {
+    display: none;
+  }
+}

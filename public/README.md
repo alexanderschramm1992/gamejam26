@@ -1,14 +1,15 @@
 # Public
 
 ## Zweck
-- Oeffentliche Dateien, die direkt vom gebauten Client ausgeliefert werden.
+- Browser-Einstiegspunkt und Styles fuer den Client.
 
 ## Dateien
-- favicon.svg: Browser-Icon.
-- icons.svg: Oeffentliche Symbolsammlung.
+- `index.html`: Canvas-App und HUD-Container.
+- `styles.css`: High-contrast HUD- und Layout-Styling.
+- `bundle.js`: Wird vom Client-Build erzeugt.
 
 ## Darf geaendert werden
-- Rein statische Web-Dateien fuer Auslieferung und Branding.
+- HTML- und CSS-Struktur fuer Client-Praesentation.
 
 ## Nicht stillschweigend aendern
-- Dateinamen oeffentlicher Assets ohne Anpassung der HTML- oder Build-Referenzen.
+- Den Script-Pfad zu `bundle.js` nicht ohne Anpassung des Build-Outputs veraendern.

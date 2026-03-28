@@ -1,19 +1,33 @@
-# gamejam26
+# Pizza Panic Protocol
 
-Koop-faehiges Top-Down-Arcade-Spiel mit Server/Client-Architektur fuer eine Zombie-Apokalypse-Lieferfahrt.
+Frisch gebautes Koop-Multiplayer-Actionspiel nach den aktuellen Vorgaben aus `FEATURES.md`, `ARCHITECTURE.md` und `AGENTS.md`.
+
+## Was drin ist
+- Autoritativer Node.js-Server mit Socket.io.
+- Vanilla-TypeScript-Client mit HTML5-Canvas.
+- Handgebaute Stadtkarte mit Straßen, Gebäuden, Ladestationen, Dispatch, Lieferzielen und Boost-Spuren.
+- 1 bis 4 Spieler im Koop.
+- Akku, Drift-/Trägheits-Fahrverhalten, Projektilkampf und Zombie-Diesel-Gegner.
+- Liefermissions-Loop mit Eskalation und synchronisiertem HUD.
+
+## Projektstruktur
+- `src/server`: Serverlogik und Simulation.
+- `src/client`: Rendering, Input, HUD und Audio-Feedback.
+- `src/shared`: Gemeinsame Datenmodelle, Konfiguration und Kartendaten.
+- `public`: HTML/CSS für den Browser-Client.
+- `assets`: Statische Assets; aktuell ungenutzt, damit kein alter Prototyp übernommen wird.
 
 ## Start
-- `npm install`
-- `npm run start`
-- Browser auf `http://localhost:3000` oeffnen
+1. `npm install`
+2. `npm run build`
+3. `npm start`
+4. `http://localhost:3000` im Browser öffnen
 
-## Entwicklung
-- `npm run dev` startet nur den Vite-Client.
-- `npm run server` startet nur den autoritativen Node-Server.
-- `npm run test` fuehrt die vorhandenen Vitest-Tests aus.
+## Steuerung
+- `WASD` oder Pfeiltasten: Fahren / Lenken
+- `Space`: Schießen
+- `E`: Mission am Dispatch annehmen
+- `Shift`: Bremsen / kontrollierter laden auf Station
 
-## Aktueller Umfang
-- Autoritativer Multiplayer-Server mit WebSocket-Sync.
-- Fahrbares E-Auto mit Akku, Boost, Schiessen und Kollisionslogik.
-- Feste Stadtkarte mit Strassen, Gebaeuden, Spawnpunkt, Lieferziel, Ladestationen und Boost-Spuren.
-- Zombie-Fahrzeuggegner, Powerups, Deliveries und HUD mit Richtungs-Pfeil.
+## Was nicht verändert werden soll
+- `AGENTS.md`, `ARCHITECTURE.md` und `FEATURES.md` bleiben Referenzdokumente.
