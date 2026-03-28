@@ -13,3 +13,6 @@ This file contains instructions for agents.
 
 # Feature Description
 Features of the game are described in the [FEATURES.md](FEATURES.md) file.
+
+# Architecture Description
+The architecture of the game is described in the [ARCHITECTURE.md](ARCHITECTURE.md) file.
