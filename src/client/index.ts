@@ -1,10 +1,11 @@
 import { io, type Socket } from "socket.io-client";
 import type { ClientEvents, ServerEvents } from "../shared/network/protocol";
-import type { GameSnapshot, WorldEvent } from "../shared/model/types";
+import type { GameSnapshot, PlayerState, WorldEvent } from "../shared/model/types";
 import { lerp, wrapAngle } from "../shared/utils/math";
 import { AdminMenu } from "./AdminMenu";
 import { AudioMixer } from "./AudioMixer";
 import { InputController } from "./InputController";
+import { GameOverOverlay } from "./GameOverOverlay";
 import { loadStreetTiles } from "./StreetTileRenderer";
 import {
   VehicleSelectionMenu,
@@ -36,6 +37,7 @@ const input = new InputController();
 const audio = new AudioMixer();
 const adminMenu = new AdminMenu();
 const vehicleMenu = new VehicleSelectionMenu();
+const gameOverOverlay = new GameOverOverlay();
 const visuals: VisualCache = {
   players: new Map<string, VisualEntity>(),
   enemies: new Map<string, VisualEntity>(),
@@ -48,6 +50,8 @@ let snapshot: GameSnapshot | null = null;
 let inputSequence = 0;
 let lastRenderedEvent = 0;
 let vehicleSelectionConfirmed = false;
+let localDeathCount = 0;
+let wasLocalPlayerDestroyed = false;
 const drainBeams: DrainBeamVisual[] = [];
 
 const getViewportSize = (): { width: number; height: number } => ({
@@ -58,6 +62,13 @@ const getViewportSize = (): { width: number; height: number } => ({
 const formatPlayerName = (name: string, playerId: string): string => (
   playerId === adminPlayerId ? `*${name}` : name
 );
+
+const findLocalPlayer = (currentSnapshot: GameSnapshot | null): PlayerState | null =>
+  currentSnapshot?.players.find((candidate) => candidate.id === localPlayerId) ?? null;
+
+const updateInputEnabled = (): void => {
+  input.setEnabled(vehicleSelectionConfirmed && !adminMenu.isOpen() && !gameOverOverlay.isOpen());
+};
 
 const resize = (): void => {
   const viewport = getViewportSize();
@@ -95,12 +106,12 @@ const syncVisualMap = <T extends { id: string; x: number; y: number; rotation?: 
 };
 
 const setAdminMenuOpen = (open: boolean): void => {
-  if (!vehicleSelectionConfirmed) {
+  if (!vehicleSelectionConfirmed || gameOverOverlay.isOpen()) {
     return;
   }
 
   adminMenu.setOpen(open);
-  input.setEnabled(!open);
+  updateInputEnabled();
 };
 
 const createDrainBeamFromEvent = (event: WorldEvent): void => {
@@ -123,6 +134,36 @@ const pruneExpiredDrainBeams = (nowMs: number): void => {
       drainBeams.splice(index, 1);
     }
   }
+};
+
+const syncGameOverState = (nowMs: number): void => {
+  const localPlayer = findLocalPlayer(snapshot);
+
+  if (!vehicleSelectionConfirmed || !localPlayer) {
+    wasLocalPlayerDestroyed = false;
+    if (gameOverOverlay.isOpen()) {
+      gameOverOverlay.hide();
+    }
+    updateInputEnabled();
+    return;
+  }
+
+  if (localPlayer.destroyed && !wasLocalPlayerDestroyed) {
+    localDeathCount += 1;
+    adminMenu.setOpen(false);
+    gameOverOverlay.show({
+      deathCount: localDeathCount,
+      respawnTimer: localPlayer.respawnTimer
+    });
+  }
+
+  gameOverOverlay.update(nowMs);
+  if (gameOverOverlay.isOpen()) {
+    gameOverOverlay.setRespawnState(!localPlayer.destroyed, localPlayer.respawnTimer);
+  }
+
+  wasLocalPlayerDestroyed = localPlayer.destroyed;
+  updateInputEnabled();
 };
 
 const updateOverlay = (): void => {
@@ -179,6 +220,7 @@ socket.on("snapshot", (nextSnapshot) => {
   syncVisualMap(visuals.enemies, snapshot.enemies);
   syncVisualMap(visuals.projectiles, snapshot.projectiles);
   updateOverlay();
+  syncGameOverState(performance.now());
 });
 
 adminMenu.onUpdate((patch) => {
@@ -191,13 +233,18 @@ adminMenu.onCloseRequest(() => {
 vehicleMenu.onConfirm(({ vehicle, playerName }: VehicleSelectionConfirmation) => {
   vehicleSelectionConfirmed = true;
   vehicleMenu.setOpen(false);
-  input.setEnabled(true);
+  updateInputEnabled();
   socket.emit("setPlayerName", playerName);
   void setLocalPlayerCarAsset(vehicle.assetPath);
 });
 
+gameOverOverlay.onRestart(() => {
+  gameOverOverlay.hide();
+  updateInputEnabled();
+});
+
 window.addEventListener("keydown", (event) => {
-  if (event.code !== "Escape" || event.repeat || !vehicleSelectionConfirmed) {
+  if (event.code !== "Escape" || event.repeat || !vehicleSelectionConfirmed || gameOverOverlay.isOpen()) {
     return;
   }
 
@@ -214,6 +261,7 @@ const loop = (): void => {
   inputSequence += 1;
   socket.emit("input", input.snapshot(inputSequence));
   pruneExpiredDrainBeams(nowMs);
+  syncGameOverState(nowMs);
 
   if (snapshot) {
     syncVisualMap(visuals.players, snapshot.players);
@@ -234,7 +282,7 @@ const loop = (): void => {
 window.addEventListener("resize", resize);
 resize();
 updateOverlay();
-input.setEnabled(false);
+updateInputEnabled();
 vehicleMenu.setOpen(true);
 loadCarAsset().catch((error) => console.warn("Car asset loading failed, using fallback:", error));
 loadStreetTiles().catch((error) => console.warn("Street tiles loading failed, using fallback:", error));

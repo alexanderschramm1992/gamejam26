@@ -712,3 +712,107 @@ body {
   color: var(--muted);
   line-height: 1.6;
 }
+
+
+body.is-gameover-active .shell {
+  filter: grayscale(1) brightness(0.6);
+}
+
+.gameover-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(1, 8, 14, 0.36);
+  backdrop-filter: blur(8px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+  z-index: 45;
+}
+
+.gameover-backdrop.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.gameover-panel {
+  width: min(520px, calc(100vw - 28px));
+  padding: 28px 28px 24px;
+  border: 1px solid rgba(255, 103, 103, 0.3);
+  border-radius: 26px;
+  background:
+    linear-gradient(180deg, rgba(7, 17, 26, 0.96), rgba(7, 17, 26, 0.9)),
+    radial-gradient(circle at top, rgba(255, 103, 103, 0.14), transparent 55%);
+  box-shadow: 0 26px 90px rgba(0, 0, 0, 0.55);
+}
+
+.gameover-eyebrow {
+  margin: 0 0 8px;
+  color: var(--danger);
+  font-size: 0.76rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.gameover-title {
+  margin: 0;
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.gameover-message,
+.gameover-status {
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.gameover-message {
+  margin: 14px 0 8px;
+}
+
+.gameover-status {
+  margin: 0 0 18px;
+  min-height: 52px;
+}
+
+.gameover-action {
+  position: relative;
+  height: 96px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+}
+
+.gameover-restart {
+  position: absolute;
+  min-width: 190px;
+  padding: 14px 18px;
+  border: 1px solid rgba(88, 240, 255, 0.32);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(88, 240, 255, 0.22), rgba(88, 240, 255, 0.08));
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: transform 0.12s ease, opacity 0.12s ease, background 0.12s ease;
+}
+
+.gameover-restart:hover:enabled {
+  transform: translateY(-1px);
+}
+
+.gameover-restart:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.gameover-restart.is-evading {
+  border-color: rgba(255, 179, 71, 0.45);
+  background: linear-gradient(180deg, rgba(255, 179, 71, 0.24), rgba(255, 179, 71, 0.08));
+}
