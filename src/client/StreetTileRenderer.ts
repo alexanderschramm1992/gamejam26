@@ -253,12 +253,18 @@ const drawRoadTile = (
 };
 
 export const drawTiledRoads = (ctx: CanvasRenderingContext2D): void => {
-  ctx.fillStyle = "#102231";
-  ctx.fillRect(0, 0, CITY_MAP.width, CITY_MAP.height);
-
   const roadCells = buildRoadGrid();
   const cols = CITY_MAP.width / ROAD_TILE_SIZE;
   const rows = CITY_MAP.height / ROAD_TILE_SIZE;
+
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      const backgroundVariant = chooseTileVariant([], col, row);
+      const backgroundTile = backgroundVariant?.tileName ?? "none";
+      const backgroundRotation = backgroundVariant?.rotation ?? 0;
+      drawRoadTile(ctx, col, row, backgroundTile, backgroundRotation);
+    }
+  }
 
   for (let row = 0; row < rows; row += 1) {
     for (let col = 0; col < cols; col += 1) {
