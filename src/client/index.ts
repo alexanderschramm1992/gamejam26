@@ -5,7 +5,17 @@ import { lerp, wrapAngle } from "../shared/utils/math";
 import { AdminMenu } from "./AdminMenu";
 import { AudioMixer } from "./AudioMixer";
 import { InputController } from "./InputController";
-import { renderGame, type VisualCache, type VisualEntity, loadCarAsset } from "./render";
+import {
+  VehicleSelectionMenu,
+  type VehicleSelectionConfirmation
+} from "./vehicle_selection/VehicleSelectionMenu";
+import {
+  renderGame,
+  type VisualCache,
+  type VisualEntity,
+  loadCarAsset,
+  setLocalPlayerCarAsset
+} from "./render";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement | null;
 const statusEl = document.getElementById("status");
@@ -24,6 +34,7 @@ const socket: Socket<ServerEvents, ClientEvents> = io();
 const input = new InputController();
 const audio = new AudioMixer();
 const adminMenu = new AdminMenu();
+const vehicleMenu = new VehicleSelectionMenu();
 const visuals: VisualCache = {
   players: new Map<string, VisualEntity>(),
   enemies: new Map<string, VisualEntity>(),
@@ -31,14 +42,20 @@ const visuals: VisualCache = {
 };
 
 let localPlayerId: string | null = null;
+let adminPlayerId: string | null = null;
 let snapshot: GameSnapshot | null = null;
 let inputSequence = 0;
 let lastRenderedEvent = 0;
+let vehicleSelectionConfirmed = false;
 
 const getViewportSize = (): { width: number; height: number } => ({
   width: Math.max(640, Math.floor(canvas.clientWidth || window.innerWidth)),
   height: Math.max(520, Math.floor(canvas.clientHeight || window.innerHeight * 0.7))
 });
+
+const formatPlayerName = (name: string, playerId: string): string => (
+  playerId === adminPlayerId ? `*${name}` : name
+);
 
 const resize = (): void => {
   const viewport = getViewportSize();
@@ -76,6 +93,10 @@ const syncVisualMap = <T extends { id: string; x: number; y: number; rotation?: 
 };
 
 const setAdminMenuOpen = (open: boolean): void => {
+  if (!vehicleSelectionConfirmed) {
+    return;
+  }
+
   adminMenu.setOpen(open);
   input.setEnabled(!open);
 };
@@ -94,7 +115,7 @@ const updateOverlay = (): void => {
         ? `Live order ${snapshot.mission.id}`
         : "Dispatch cooling down";
   const playerText = player
-    ? `${player.name} | hull ${player.health.toFixed(0)} | battery ${player.battery.toFixed(0)}`
+    ? `${formatPlayerName(player.name, player.id)} | hull ${player.health.toFixed(0)} | battery ${player.battery.toFixed(0)}`
     : "Spectating sync";
   statusEl.textContent = `${missionText}
 ${playerText}
@@ -122,7 +143,9 @@ socket.on("hello", ({ playerId }) => {
 });
 
 socket.on("adminState", (state) => {
+  adminPlayerId = state.adminPlayerId;
   adminMenu.applyState(state);
+  updateOverlay();
 });
 
 socket.on("snapshot", (nextSnapshot) => {
@@ -140,8 +163,16 @@ adminMenu.onCloseRequest(() => {
   setAdminMenuOpen(false);
 });
 
+vehicleMenu.onConfirm(({ vehicle, playerName }: VehicleSelectionConfirmation) => {
+  vehicleSelectionConfirmed = true;
+  vehicleMenu.setOpen(false);
+  input.setEnabled(true);
+  socket.emit("setPlayerName", playerName);
+  void setLocalPlayerCarAsset(vehicle.assetPath);
+});
+
 window.addEventListener("keydown", (event) => {
-  if (event.code !== "Escape" || event.repeat) {
+  if (event.code !== "Escape" || event.repeat || !vehicleSelectionConfirmed) {
     return;
   }
 
@@ -161,7 +192,7 @@ const loop = (): void => {
     syncVisualMap(visuals.players, snapshot.players);
     syncVisualMap(visuals.enemies, snapshot.enemies);
     syncVisualMap(visuals.projectiles, snapshot.projectiles);
-    renderGame(context, canvas, snapshot, localPlayerId, visuals, audio);
+    renderGame(context, canvas, snapshot, localPlayerId, adminPlayerId, visuals, audio);
   } else {
     const viewport = getViewportSize();
     context.clearRect(0, 0, viewport.width, viewport.height);
@@ -176,5 +207,10 @@ const loop = (): void => {
 window.addEventListener("resize", resize);
 resize();
 updateOverlay();
+input.setEnabled(false);
+vehicleMenu.setOpen(true);
 loadCarAsset().catch((error) => console.warn("Car asset loading failed, using fallback:", error));
+void setLocalPlayerCarAsset(vehicleMenu.getSelectedVehicle().assetPath).catch((error) =>
+  console.warn("Vehicle selection asset loading failed, using fallback:", error)
+);
 requestAnimationFrame(loop);

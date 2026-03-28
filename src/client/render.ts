@@ -10,37 +10,38 @@ export interface VisualEntity {
 }
 
 let carImage: HTMLImageElement | null = null;
-let assetLoadingPromise: Promise<void> | null = null;
+let localPlayerCarImage: HTMLImageElement | null = null;
+const imageCache = new Map<string, Promise<HTMLImageElement>>();
 
-export const loadCarAsset = (): Promise<void> => {
-  // Reuse the same loading promise if already in progress
-  if (assetLoadingPromise) {
-    return assetLoadingPromise;
+const loadImage = (src: string): Promise<HTMLImageElement> => {
+  const cached = imageCache.get(src);
+  if (cached) {
+    return cached;
   }
 
-  assetLoadingPromise = new Promise((resolve, reject) => {
-    if (carImage) {
-      console.log("[Asset] Car image already loaded");
-      resolve();
-      return;
-    }
-    console.log("[Asset] Starting to load car.png from /assets/car.png");
+  const next = new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.onload = () => {
-      console.log("[Asset] Car image loaded successfully", img.width, "x", img.height);
-      carImage = img;
-      resolve();
-    };
-    img.onerror = (error) => {
-      console.error("[Asset] Failed to load car asset:", error);
-      reject(new Error("Failed to load car asset"));
-    };
-    img.src = "/assets/car.png";
-    console.log("[Asset] Image src set, loading...");
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`Failed to load image ${src}`));
+    img.src = src;
   });
 
-  return assetLoadingPromise;
+  imageCache.set(src, next);
+  return next;
+};
+
+const formatPlayerLabel = (player: PlayerState, adminPlayerId: string | null): string => {
+  const name = player.id === adminPlayerId ? `*${player.name}` : player.name;
+  return name.toUpperCase();
+};
+
+export const loadCarAsset = async (): Promise<void> => {
+  carImage = await loadImage("/assets/car.png");
+};
+
+export const setLocalPlayerCarAsset = async (src: string): Promise<void> => {
+  localPlayerCarImage = await loadImage(src);
 };
 
 export interface VisualCache {
@@ -64,28 +65,27 @@ const drawVehicle = (
   visual: VisualEntity,
   entity: PlayerState | EnemyState,
   color: string,
-  label: string
+  label: string,
+  customImage?: HTMLImageElement | null
 ): void => {
-  // Draw car image if loaded
-  if (carImage) {
+  const sprite = customImage ?? carImage;
+
+  if (sprite) {
     ctx.save();
     ctx.translate(visual.x, visual.y);
     ctx.rotate(visual.rotation);
     ctx.shadowBlur = 18;
     ctx.shadowColor = color;
-    // Draw image centered at origin, rotated 180 degrees
-    // Original car.png ratio: 444x208 = 2.135:1 (width:height)
     const imgHeight = entity.radius * 1.8;
     const imgWidth = imgHeight * 2.135;
     ctx.globalAlpha = 0.95;
     ctx.save();
     ctx.rotate(Math.PI);
-    ctx.drawImage(carImage, -imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight);
+    ctx.drawImage(sprite, -imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight);
     ctx.restore();
     ctx.globalAlpha = 1;
     ctx.restore();
   } else {
-    // Fallback to geometric shapes if image not loaded
     ctx.save();
     ctx.translate(visual.x, visual.y);
     ctx.rotate(visual.rotation);
@@ -207,12 +207,12 @@ const drawWorldGeometry = (ctx: CanvasRenderingContext2D): void => {
   CITY_MAP.deliveryPoints.forEach((point) => glowPoi(point.x, point.y, point.radius * 0.38, "rgba(255, 122, 209, 0.14)", "#ff7ad1"));
 };
 
-
 export const renderGame = (
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
   snapshot: GameSnapshot,
   localPlayerId: string | null,
+  adminPlayerId: string | null,
   visuals: VisualCache,
   audio?: AudioMixer
 ): void => {
@@ -222,11 +222,9 @@ export const renderGame = (
 
   const localPlayer = snapshot.players.find((player) => player.id === localPlayerId);
 
-  // Update engine sound based on player speed
   if (audio && localPlayer) {
     const speed = Math.abs(localPlayer.speed);
-    // Use maxForwardSpeed as reference for max sound pitch (from gameConfig)
-    const maxSpeed = 280; // Typical max speed for player vehicle
+    const maxSpeed = 280;
     audio.updateEngineSound(speed, maxSpeed);
   }
 
@@ -256,6 +254,7 @@ export const renderGame = (
       drawProjectile(ctx, visual, projectile);
     }
   }
+
   for (const enemy of snapshot.enemies) {
     const visual = visuals.enemies.get(enemy.id);
     if (visual) {
@@ -268,10 +267,18 @@ export const renderGame = (
       );
     }
   }
+
   for (const player of snapshot.players) {
     const visual = visuals.players.get(player.id);
     if (visual) {
-      drawVehicle(ctx, visual, player, player.color, player.id === localPlayerId ? "YOU" : player.name.toUpperCase());
+      drawVehicle(
+        ctx,
+        visual,
+        player,
+        player.color,
+        formatPlayerLabel(player, adminPlayerId),
+        player.id === localPlayerId ? localPlayerCarImage : null
+      );
     }
   }
   ctx.restore();

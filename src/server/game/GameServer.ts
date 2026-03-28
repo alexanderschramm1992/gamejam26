@@ -85,6 +85,9 @@ export class GameServer {
     socket.on("input", (input: PlayerInput) => {
       this.inputs.set(player.id, input);
     });
+    socket.on("setPlayerName", (name: string) => {
+      player.name = this.sanitizePlayerName(name, player.name);
+    });
     socket.on("adminUpdateSettings", (patch: AdminSettingsPatch) => {
       if (player.id !== this.adminPlayerId) {
         return;
@@ -137,6 +140,16 @@ export class GameServer {
       respawnTimer: 0,
       lastProcessedInput: 0
     };
+  }
+
+  private sanitizePlayerName(rawName: string, fallback: string): string {
+    const sanitized = rawName
+      .replace(/[\x00-\x1F\x7F]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 18);
+
+    return sanitized.length > 0 ? sanitized : fallback;
   }
 
   private tick(dt: number): void {
