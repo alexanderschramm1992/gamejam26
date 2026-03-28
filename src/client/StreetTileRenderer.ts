@@ -13,21 +13,118 @@ export interface TileAsset {
   loadingPromise: Promise<void> | null;
 }
 
-// Tile asset catalog
+// Tile asset catalog, loaded from street tile files named after the directions they connect.
 const TILE_CATALOG: Record<string, string> = {
-  // straight roads
-  roadStraight: "/assets/street_tiles/DQ-SF_city_tiles_road_01A.png",
-  // curve roads
-  roadCurve: "/assets/street_tiles/DQ-SF_city_tiles_road_03A.png"
+  left: "/assets/street_tiles/left.png",
+  left2: "/assets/street_tiles/left2.png",
+  left3: "/assets/street_tiles/left3.png",
+  left4: "/assets/street_tiles/left4.png",
+  left_down: "/assets/street_tiles/left_down.png",
+  left_down2: "/assets/street_tiles/left_down2.png",
+  left_down3: "/assets/street_tiles/left_down3.png",
+  left_down4: "/assets/street_tiles/left_down4.png",
+  left_right: "/assets/street_tiles/left_right.png",
+  left_right2: "/assets/street_tiles/left_right2.png",
+  left_right4: "/assets/street_tiles/left_right4.png",
+  left_right5: "/assets/street_tiles/left_right5.png",
+  left_right_down: "/assets/street_tiles/left_right_down.png",
+  left_right_down2: "/assets/street_tiles/left_right_down2.png",
+  left_right_down3: "/assets/street_tiles/left_right_down3.png",
+  left_right_down4: "/assets/street_tiles/left_right_down4.png",
+  left_right_down_up: "/assets/street_tiles/left_right_down_up.png",
+  left_right_down_up2: "/assets/street_tiles/left_right_down_up2.png",
+  left_right_down_up3: "/assets/street_tiles/left_right_down_up3.png",
+  none: "/assets/street_tiles/none.png"
 };
 
-// Tile loading state
+const ROAD_TILE_SIZE = 256;
+const DIRECTION_ORDER = ["left", "right", "down", "up"] as const;
+type Direction = (typeof DIRECTION_ORDER)[number];
+
 const tiles: Map<string, TileAsset> = new Map();
 let masterLoadingPromise: Promise<void> | null = null;
 
-/**
- * Load a single tile asset
- */
+const normalizeConnectionKey = (directions: string[]): string => {
+  return directions
+    .filter((direction): direction is Direction => DIRECTION_ORDER.includes(direction as Direction))
+    .sort((a, b) => DIRECTION_ORDER.indexOf(a as Direction) - DIRECTION_ORDER.indexOf(b as Direction))
+    .join("_");
+};
+
+const tileVariantsByKey = (() => {
+  const map = new Map<string, string[]>();
+
+  for (const tileName of Object.keys(TILE_CATALOG)) {
+    const cleanedName = tileName.replace(/\d+$/, "");
+    const key = cleanedName === "none" ? "" : normalizeConnectionKey(cleanedName.split("_"));
+    const list = map.get(key) ?? [];
+    list.push(tileName);
+    map.set(key, list);
+  }
+
+  return map;
+})();
+
+const ROTATION_MAPPINGS: Record<Direction, Direction>[] = [
+  { left: "left", right: "right", up: "up", down: "down" },
+  { left: "up", up: "right", right: "down", down: "left" },
+  { left: "right", right: "left", up: "down", down: "up" },
+  { left: "down", down: "right", right: "up", up: "left" }
+];
+
+const rotationAngle = (rotationIndex: number): number => {
+  return (rotationIndex * Math.PI) / 2;
+};
+
+const stableTileIndex = (col: number, row: number, count: number): number => {
+  return Math.abs((col * 31 + row * 17) % count);
+};
+
+const rotateDirections = (directions: Direction[], rotationIndex: number): Direction[] => {
+  const mapping = ROTATION_MAPPINGS[rotationIndex];
+  return directions.map((direction) => mapping[direction]).sort((a, b) => DIRECTION_ORDER.indexOf(a) - DIRECTION_ORDER.indexOf(b));
+};
+
+const chooseTileVariant = (
+  connections: Direction[],
+  col: number,
+  row: number
+): { tileName: string; rotation: number } | null => {
+  const normalizedTarget = normalizeConnectionKey(connections);
+
+  if (normalizedTarget === "") {
+    const noneCandidates = tileVariantsByKey.get("") ?? [];
+    if (noneCandidates.length === 0) return null;
+    return {
+      tileName: noneCandidates[stableTileIndex(col, row, noneCandidates.length)],
+      rotation: 0
+    };
+  }
+
+  const candidates: Array<{ tileName: string; rotation: number }> = [];
+
+  for (const [shapeKey, tileNames] of tileVariantsByKey.entries()) {
+    if (!shapeKey) continue;
+
+    const baseDirections = shapeKey.split("_") as Direction[];
+
+    for (let rotationIndex = 0; rotationIndex < ROTATION_MAPPINGS.length; rotationIndex += 1) {
+      const rotated = normalizeConnectionKey(rotateDirections(baseDirections, rotationIndex));
+      if (rotated === normalizedTarget) {
+        const tileName = tileNames[stableTileIndex(col, row, tileNames.length)];
+        candidates.push({ tileName, rotation: rotationAngle(rotationIndex) });
+      }
+    }
+  }
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  const selectionIndex = stableTileIndex(col, row, candidates.length);
+  return candidates[selectionIndex];
+};
+
 const loadTile = (name: string, path: string): Promise<void> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -50,9 +147,6 @@ const loadTile = (name: string, path: string): Promise<void> => {
   });
 };
 
-/**
- * Load all street tile assets
- */
 export const loadStreetTiles = (): Promise<void> => {
   if (masterLoadingPromise) {
     return masterLoadingPromise;
@@ -67,174 +161,122 @@ export const loadStreetTiles = (): Promise<void> => {
   return masterLoadingPromise;
 };
 
-/**
- * Get a tile asset by name
- */
 const getTile = (name: string): HTMLImageElement | null => {
   const asset = tiles.get(name);
   return asset?.image ?? null;
 };
 
-/**
- * Find intersection area if a road segment overlaps with another road
- */
-const findIntersectionArea = (road: any, allRoads: any[]): any | null => {
-  // Für vertikale Straßen: suche horizontale Straßen zum Kreuzen
-  if (road.width < road.height) {
-    for (const otherRoad of allRoads) {
-      if (otherRoad.width > otherRoad.height && otherRoad !== road) { // horizontale Straße
-        // Prüfe ob sie sich kreuzen
-        const xOverlap = !(road.x + road.width < otherRoad.x || road.x > otherRoad.x + otherRoad.width);
-        const yOverlap = !(road.y + road.height < otherRoad.y || road.y > otherRoad.y + otherRoad.height);
-        
-        if (xOverlap && yOverlap) {
-          // Berechne die Kreuzungsfläche
-          return {
-            x: Math.max(road.x, otherRoad.x),
-            y: Math.max(road.y, otherRoad.y),
-            width: Math.min(road.x + road.width, otherRoad.x + otherRoad.width) - Math.max(road.x, otherRoad.x),
-            height: Math.min(road.y + road.height, otherRoad.y + otherRoad.height) - Math.max(road.y, otherRoad.y)
-          };
-        }
+const buildRoadGrid = (): Set<string> => {
+  const cells = new Set<string>();
+
+  CITY_MAP.roads.forEach((road) => {
+    const startCol = road.x / ROAD_TILE_SIZE;
+    const startRow = road.y / ROAD_TILE_SIZE;
+    const endCol = (road.x + road.width) / ROAD_TILE_SIZE;
+    const endRow = (road.y + road.height) / ROAD_TILE_SIZE;
+
+    for (let col = startCol; col < endCol; col += 1) {
+      for (let row = startRow; row < endRow; row += 1) {
+        cells.add(`${col},${row}`);
       }
     }
-  }
-  
-  // Für horizontale Straßen: suche vertikale Straßen zum Kreuzen
-  if (road.height < road.width) {
-    for (const otherRoad of allRoads) {
-      if (otherRoad.width < otherRoad.height && otherRoad !== road) { // vertikale Straße
-        // Prüfe ob sie sich kreuzen
-        const xOverlap = !(road.x + road.width < otherRoad.x || road.x > otherRoad.x + otherRoad.width);
-        const yOverlap = !(road.y + road.height < otherRoad.y || road.y > otherRoad.y + otherRoad.height);
-        
-        if (xOverlap && yOverlap) {
-          // Berechne die Kreuzungsfläche
-          return {
-            x: Math.max(road.x, otherRoad.x),
-            y: Math.max(road.y, otherRoad.y),
-            width: Math.min(road.x + road.width, otherRoad.x + otherRoad.width) - Math.max(road.x, otherRoad.x),
-            height: Math.min(road.y + road.height, otherRoad.y + otherRoad.height) - Math.max(road.y, otherRoad.y)
-          };
-        }
-      }
-    }
-  }
-  
-  return null;
+  });
+
+  return cells;
 };
 
-/**
- * Draw a tiled road segment using street tile assets
- */
-const drawTiledRoad = (
-  ctx: CanvasRenderingContext2D,
-  road: any
-): void => {
-  const tileVariant = "roadStraight";
-  const tileImage = getTile(tileVariant);
+const hasRoadAt = (roadCells: Set<string>, col: number, row: number): boolean => {
+  return roadCells.has(`${col},${row}`);
+};
 
+const getConnectionsForCell = (roadCells: Set<string>, col: number, row: number): Direction[] => {
+  if (!hasRoadAt(roadCells, col, row)) {
+    return [];
+  }
+
+  const connections: Direction[] = [];
+  if (hasRoadAt(roadCells, col - 1, row)) connections.push("left");
+  if (hasRoadAt(roadCells, col + 1, row)) connections.push("right");
+  if (hasRoadAt(roadCells, col, row + 1)) connections.push("down");
+  if (hasRoadAt(roadCells, col, row - 1)) connections.push("up");
+
+  return connections;
+};
+
+const drawRoadTile = (
+  ctx: CanvasRenderingContext2D,
+  col: number,
+  row: number,
+  tileName: string,
+  rotation: number
+): void => {
+  const tileImage = getTile(tileName);
   if (!tileImage) {
-    // Fallback: draw solid color if tile not loaded
     ctx.fillStyle = "#18384b";
-    ctx.fillRect(road.x, road.y, road.width, road.height);
+    ctx.fillRect(col * ROAD_TILE_SIZE, row * ROAD_TILE_SIZE, ROAD_TILE_SIZE, ROAD_TILE_SIZE);
     return;
   }
 
-  // Calculate tile size for rendering (adapt to road dimensions)
-  const tileSize = 64; // Standard tile size for rendering
-  const isHorizontal = road.width > road.height;
-
-  // Determine how to tile the road
-  if (isHorizontal) {
-    // Tile horizontally
-    for (let x = road.x; x < road.x + road.width; x += tileSize) {
-      const drawWidth = Math.min(tileSize, road.x + road.width - x);
-      ctx.drawImage(
-        tileImage,
-        0, 0, tileImage.width, tileImage.height,
-        x, road.y, drawWidth, road.height
-      );
-    }
-  } else {
-    // Tile vertically with 90-degree rotation
-    for (let y = road.y; y < road.y + road.height; y += tileSize) {
-      const drawHeight = Math.min(tileSize, road.y + road.height - y);
-      
-      // Save current context state
-      ctx.save();
-      
-      // Move to the center of the tile and rotate 90 degrees
-      const centerX = road.x + road.width / 2;
-      const centerY = y + drawHeight / 2;
-      ctx.translate(centerX, centerY);
-      ctx.rotate(Math.PI / 2);
-      
-      // Draw the rotated tile (swap width and height for the destination)
-      ctx.drawImage(
-        tileImage,
-        0, 0, tileImage.width, tileImage.height,
-        -drawHeight / 2, -road.width / 2, drawHeight, road.width
-      );
-      
-      // Restore context state
-      ctx.restore();
-    }
+  if (rotation === 0) {
+    ctx.drawImage(
+      tileImage,
+      0,
+      0,
+      tileImage.width,
+      tileImage.height,
+      col * ROAD_TILE_SIZE,
+      row * ROAD_TILE_SIZE,
+      ROAD_TILE_SIZE,
+      ROAD_TILE_SIZE
+    );
+    return;
   }
+
+  const centerX = col * ROAD_TILE_SIZE + ROAD_TILE_SIZE / 2;
+  const centerY = row * ROAD_TILE_SIZE + ROAD_TILE_SIZE / 2;
+
+  ctx.save();
+  ctx.translate(centerX, centerY);
+  ctx.rotate(rotation);
+  ctx.drawImage(
+    tileImage,
+    0,
+    0,
+    tileImage.width,
+    tileImage.height,
+    -ROAD_TILE_SIZE / 2,
+    -ROAD_TILE_SIZE / 2,
+    ROAD_TILE_SIZE,
+    ROAD_TILE_SIZE
+  );
+  ctx.restore();
 };
 
-/**
- * Draw the complete tiled road network
- */
 export const drawTiledRoads = (ctx: CanvasRenderingContext2D): void => {
-  // Draw base background
   ctx.fillStyle = "#102231";
   ctx.fillRect(0, 0, CITY_MAP.width, CITY_MAP.height);
 
-  // Draw each road with tiled sprites (straight roads)
-  CITY_MAP.roads.forEach((road) => {
-    drawTiledRoad(ctx, road);
-  });
+  const roadCells = buildRoadGrid();
+  const cols = CITY_MAP.width / ROAD_TILE_SIZE;
+  const rows = CITY_MAP.height / ROAD_TILE_SIZE;
 
-  // Draw intersections/curves on top
-  drawIntersections(ctx);
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      if (!hasRoadAt(roadCells, col, row)) {
+        continue;
+      }
 
-  // Optional: Draw road markings (lane dividers) if desired
+      const connections = getConnectionsForCell(roadCells, col, row);
+      const variant = chooseTileVariant(connections, col, row);
+      const tileName = variant?.tileName ?? "none";
+      const rotation = variant?.rotation ?? 0;
+      drawRoadTile(ctx, col, row, tileName, rotation);
+    }
+  }
+
   drawRoadMarkings(ctx);
 };
 
-/**
- * Draw intersection areas with curve tiles
- */
-const drawIntersections = (ctx: CanvasRenderingContext2D): void => {
-  const tileImage = getTile("roadCurve");
-  if (!tileImage) return;
-
-  const drawnIntersections = new Set<string>(); // Verhindere doppelte Zeichnung
-
-  // Finde alle Kreuzungsbereiche
-  for (const road of CITY_MAP.roads) {
-    const intersection = findIntersectionArea(road, CITY_MAP.roads);
-    
-    if (intersection) {
-      const key = `${intersection.x},${intersection.y}`;
-      if (!drawnIntersections.has(key)) {
-        drawnIntersections.add(key);
-
-        // Zeichne die gesamte Kreuzungsfläche mit einem einzelnen skaliertem Bild
-        ctx.drawImage(
-          tileImage,
-          0, 0, tileImage.width, tileImage.height,
-          intersection.x, intersection.y, intersection.width, intersection.height
-        );
-      }
-    }
-  }
-};
-
-/**
- * Draw road markings (lane dividers) on top of tiles
- */
 const drawRoadMarkings = (ctx: CanvasRenderingContext2D): void => {
   ctx.strokeStyle = "rgba(255,255,255,0.06)";
   ctx.lineWidth = 4;
