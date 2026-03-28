@@ -5,6 +5,7 @@ import { lerp, wrapAngle } from "../shared/utils/math";
 import { AdminMenu } from "./AdminMenu";
 import { AudioMixer } from "./AudioMixer";
 import { InputController } from "./InputController";
+import { loadStreetTiles } from "./StreetTileRenderer";
 import {
   VehicleSelectionMenu,
   type VehicleSelectionConfirmation
@@ -14,8 +15,7 @@ import {
   type DrainBeamVisual,
   type VisualCache,
   type VisualEntity,
-  loadCarAsset,
-  setLocalPlayerCarAsset
+  loadCarAsset, setLocalPlayerCarAsset
 } from "./render";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement | null;
@@ -237,7 +237,8 @@ updateOverlay();
 input.setEnabled(false);
 vehicleMenu.setOpen(true);
 loadCarAsset().catch((error) => console.warn("Car asset loading failed, using fallback:", error));
-void setLocalPlayerCarAsset(vehicleMenu.getSelectedVehicle().assetPath).catch((error) =>
+loadStreetTiles().catch((error) => console.warn("Street tiles loading failed, using fallback:", error));
+void setLocalPlayerCarAsset(vehicleMenu.getSelectedVehicle().assetPath).catch((error: any) =>
   console.warn("Vehicle selection asset loading failed, using fallback:", error)
 );
 requestAnimationFrame(loop);
