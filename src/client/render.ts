@@ -8,6 +8,40 @@ export interface VisualEntity {
   rotation: number;
 }
 
+let carImage: HTMLImageElement | null = null;
+let assetLoadingPromise: Promise<void> | null = null;
+
+export const loadCarAsset = (): Promise<void> => {
+  // Reuse the same loading promise if already in progress
+  if (assetLoadingPromise) {
+    return assetLoadingPromise;
+  }
+
+  assetLoadingPromise = new Promise((resolve, reject) => {
+    if (carImage) {
+      console.log("[Asset] Car image already loaded");
+      resolve();
+      return;
+    }
+    console.log("[Asset] Starting to load car.png from /assets/car.png");
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      console.log("[Asset] Car image loaded successfully", img.width, "x", img.height);
+      carImage = img;
+      resolve();
+    };
+    img.onerror = (error) => {
+      console.error("[Asset] Failed to load car asset:", error);
+      reject(new Error("Failed to load car asset"));
+    };
+    img.src = "/assets/car.png";
+    console.log("[Asset] Image src set, loading...");
+  });
+
+  return assetLoadingPromise;
+};
+
 export interface VisualCache {
   players: Map<string, VisualEntity>;
   enemies: Map<string, VisualEntity>;
@@ -31,22 +65,43 @@ const drawVehicle = (
   color: string,
   label: string
 ): void => {
-  ctx.save();
-  ctx.translate(visual.x, visual.y);
-  ctx.rotate(visual.rotation);
-  ctx.shadowBlur = 18;
-  ctx.shadowColor = color;
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.roundRect(-entity.radius, -entity.radius * 0.7, entity.radius * 2, entity.radius * 1.4, 8);
-  ctx.fill();
-  ctx.fillStyle = "rgba(7, 17, 26, 0.9)";
-  ctx.beginPath();
-  ctx.roundRect(-entity.radius * 0.5, -entity.radius * 0.35, entity.radius, entity.radius * 0.7, 5);
-  ctx.fill();
-  ctx.fillStyle = "rgba(255,255,255,0.95)";
-  ctx.fillRect(entity.radius * 0.2, -3, entity.radius * 0.7, 6);
-  ctx.restore();
+  // Draw car image if loaded
+  if (carImage) {
+    ctx.save();
+    ctx.translate(visual.x, visual.y);
+    ctx.rotate(visual.rotation);
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = color;
+    // Draw image centered at origin, rotated 180 degrees
+    // Original car.png ratio: 444x208 = 2.135:1 (width:height)
+    const imgHeight = entity.radius * 1.8;
+    const imgWidth = imgHeight * 2.135;
+    ctx.globalAlpha = 0.95;
+    ctx.save();
+    ctx.rotate(Math.PI);
+    ctx.drawImage(carImage, -imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  } else {
+    // Fallback to geometric shapes if image not loaded
+    ctx.save();
+    ctx.translate(visual.x, visual.y);
+    ctx.rotate(visual.rotation);
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = color;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(-entity.radius, -entity.radius * 0.7, entity.radius * 2, entity.radius * 1.4, 8);
+    ctx.fill();
+    ctx.fillStyle = "rgba(7, 17, 26, 0.9)";
+    ctx.beginPath();
+    ctx.roundRect(-entity.radius * 0.5, -entity.radius * 0.35, entity.radius, entity.radius * 0.7, 5);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.95)";
+    ctx.fillRect(entity.radius * 0.2, -3, entity.radius * 0.7, 6);
+    ctx.restore();
+  }
 
   ctx.fillStyle = "rgba(244, 248, 255, 0.95)";
   ctx.font = "12px Trebuchet MS";
