@@ -18,7 +18,9 @@ const TILE_CATALOG: Record<string, string> = {
   // straight roads
   roadStraight: "/assets/street_tiles/DQ-SF_city_tiles_road_01A.png",
   // curve roads
-  roadCurve: "/assets/street_tiles/DQ-SF_city_tiles_road_03A.png"
+  roadCurve: "/assets/street_tiles/DQ-SF_city_tiles_road_03A.png",
+  // intersection roads
+  roadIntersection: "/assets/street_tiles/DQ-SF_city_tiles_road_05A.png"
 };
 
 // Tile loading state
@@ -76,9 +78,11 @@ const getTile = (name: string): HTMLImageElement | null => {
 };
 
 /**
- * Find intersection area if a road segment overlaps with another road
+ * Find all intersection areas if a road segment overlaps with other roads
  */
-const findIntersectionArea = (road: any, allRoads: any[]): any | null => {
+const findAllIntersectionAreas = (road: any, allRoads: any[]): any[] => {
+  const intersections: any[] = [];
+  
   // Für vertikale Straßen: suche horizontale Straßen zum Kreuzen
   if (road.width < road.height) {
     for (const otherRoad of allRoads) {
@@ -89,12 +93,12 @@ const findIntersectionArea = (road: any, allRoads: any[]): any | null => {
         
         if (xOverlap && yOverlap) {
           // Berechne die Kreuzungsfläche
-          return {
+          intersections.push({
             x: Math.max(road.x, otherRoad.x),
             y: Math.max(road.y, otherRoad.y),
             width: Math.min(road.x + road.width, otherRoad.x + otherRoad.width) - Math.max(road.x, otherRoad.x),
             height: Math.min(road.y + road.height, otherRoad.y + otherRoad.height) - Math.max(road.y, otherRoad.y)
-          };
+          });
         }
       }
     }
@@ -110,18 +114,18 @@ const findIntersectionArea = (road: any, allRoads: any[]): any | null => {
         
         if (xOverlap && yOverlap) {
           // Berechne die Kreuzungsfläche
-          return {
+          intersections.push({
             x: Math.max(road.x, otherRoad.x),
             y: Math.max(road.y, otherRoad.y),
             width: Math.min(road.x + road.width, otherRoad.x + otherRoad.width) - Math.max(road.x, otherRoad.x),
             height: Math.min(road.y + road.height, otherRoad.y + otherRoad.height) - Math.max(road.y, otherRoad.y)
-          };
+          });
         }
       }
     }
   }
   
-  return null;
+  return intersections;
 };
 
 /**
@@ -204,19 +208,19 @@ export const drawTiledRoads = (ctx: CanvasRenderingContext2D): void => {
 };
 
 /**
- * Draw intersection areas with curve tiles
+ * Draw intersection areas with intersection tiles
  */
 const drawIntersections = (ctx: CanvasRenderingContext2D): void => {
-  const tileImage = getTile("roadCurve");
+  const tileImage = getTile("roadIntersection");
   if (!tileImage) return;
 
   const drawnIntersections = new Set<string>(); // Verhindere doppelte Zeichnung
 
   // Finde alle Kreuzungsbereiche
   for (const road of CITY_MAP.roads) {
-    const intersection = findIntersectionArea(road, CITY_MAP.roads);
+    const intersections = findAllIntersectionAreas(road, CITY_MAP.roads);
     
-    if (intersection) {
+    for (const intersection of intersections) {
       const key = `${intersection.x},${intersection.y}`;
       if (!drawnIntersections.has(key)) {
         drawnIntersections.add(key);
