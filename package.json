@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "server": "node server/server.mjs",
+    "start": "npm run build && node server/server.mjs"
   },
   "devDependencies": {
     "jsdom": "^27.0.1",

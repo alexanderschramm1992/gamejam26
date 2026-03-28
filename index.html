@@ -1,15 +1,55 @@
 <!doctype html>
-<html lang="en">
+<html lang="de">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>gamejam26</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Pizza Panic Gridlock</title>
   </head>
   <body>
     <div id="app">
-      <div id="fps-counter">FPS: 0</div>
       <canvas id="canvas"></canvas>
+      <div id="hud">
+        <div id="mission-arrow">
+          <div id="arrow-needle"></div>
+          <div id="mission-label">Mission nicht verbunden</div>
+        </div>
+        <div id="hud-primary"></div>
+        <div id="hud-secondary"></div>
+        <aside id="players-panel" class="panel">
+          <h2>Koop Status</h2>
+          <div id="players-list"></div>
+        </aside>
+        <div id="connection-box">Status: <span id="connection-status">Offline</span></div>
+        <div id="toast-layer"></div>
+      </div>
+      <div id="overlay">
+        <div id="overlay-card">
+          <h1>Pizza Panic Gridlock</h1>
+          <p>
+            Koop-Top-Down-Arcade mit E-Auto, Akku-Management, Zombie-Diesel-Fahrzeugen,
+            fester Stadtkarte, Boost-Spuren, Ladestationen und einem autoritativen Multiplayer-Server.
+          </p>
+          <form id="join-form">
+            <input id="name-input" name="name" maxlength="18" placeholder="Fahrername" value="Pizza Driver" />
+            <button type="submit">Spiel starten</button>
+          </form>
+          <div id="controls-grid">
+            <div class="panel">
+              <strong>Steuerung</strong>
+              <div>WASD oder Pfeile: fahren</div>
+              <div>Shift: Boost</div>
+              <div>Maus oder Leertaste: feuern</div>
+            </div>
+            <div class="panel">
+              <strong>Mission</strong>
+              <div>Pizza an der Pizzeria aufnehmen</div>
+              <div>Zum Lieferziel fahren</div>
+              <div>Akku ueber Charger und Busspuren halten</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

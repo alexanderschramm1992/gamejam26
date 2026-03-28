@@ -1,14 +1,19 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 
-describe('Canvas Rendering', () => {
-  let canvas: HTMLCanvasElement
+describe('Client Shell', () => {
+  let canvas: HTMLCanvasElement | null
+  let joinForm: HTMLFormElement | null
 
   beforeEach(() => {
-    canvas = document.querySelector<HTMLCanvasElement>('#canvas')!
+    canvas = document.querySelector<HTMLCanvasElement>('#canvas')
+    joinForm = document.querySelector<HTMLFormElement>('#join-form')
   })
 
-  it('should have a canvas element in the DOM', () => {
-    expect(canvas).toBeDefined()
+  it('stellt ein Canvas bereit', () => {
     expect(canvas).toBeInstanceOf(HTMLCanvasElement)
+  })
+
+  it('stellt ein Join-Formular bereit', () => {
+    expect(joinForm).toBeInstanceOf(HTMLFormElement)
   })
 })
