@@ -2,6 +2,7 @@ import { CITY_MAP, findPoiById } from "../shared/map/cityMap";
 import type { EnemyState, GameSnapshot, PlayerState, ProjectileState } from "../shared/model/types";
 import { clamp } from "../shared/utils/math";
 import type { AudioMixer } from "./AudioMixer";
+import { drawTiledRoads } from "./StreetTileRenderer";
 
 export interface VisualEntity {
   x: number;
@@ -161,36 +162,10 @@ const drawProjectile = (
 };
 
 const drawWorldGeometry = (ctx: CanvasRenderingContext2D): void => {
-  ctx.fillStyle = "#102231";
-  ctx.fillRect(0, 0, CITY_MAP.width, CITY_MAP.height);
+  // Draw tiled roads instead of geometric shapes
+  drawTiledRoads(ctx);
 
-  ctx.fillStyle = "#18384b";
-  for (const road of CITY_MAP.roads) {
-    ctx.fillRect(road.x, road.y, road.width, road.height);
-  }
-
-  ctx.strokeStyle = "rgba(255,255,255,0.06)";
-  ctx.lineWidth = 4;
-  for (const road of CITY_MAP.roads) {
-    if (road.width > road.height) {
-      const y = road.y + road.height / 2;
-      for (let x = road.x + 20; x < road.x + road.width - 20; x += 42) {
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(x + 20, y);
-        ctx.stroke();
-      }
-    } else {
-      const x = road.x + road.width / 2;
-      for (let y = road.y + 20; y < road.y + road.height - 20; y += 42) {
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(x, y + 20);
-        ctx.stroke();
-      }
-    }
-  }
-
+  // Draw buildings
   ctx.fillStyle = "#0a131b";
   for (const building of CITY_MAP.buildings) {
     ctx.shadowBlur = 12;
@@ -199,35 +174,6 @@ const drawWorldGeometry = (ctx: CanvasRenderingContext2D): void => {
     ctx.strokeStyle = "rgba(88, 240, 255, 0.08)";
     ctx.strokeRect(building.x, building.y, building.width, building.height);
   }
-
-  for (const lane of CITY_MAP.boostLanes) {
-    ctx.save();
-    ctx.strokeStyle = "rgba(193, 255, 114, 0.7)";
-    ctx.fillStyle = "rgba(193, 255, 114, 0.08)";
-    ctx.fillRect(lane.x, lane.y, lane.width, lane.height);
-    ctx.lineWidth = 3;
-    ctx.setLineDash([16, 14]);
-    ctx.strokeRect(lane.x + 4, lane.y + 4, lane.width - 8, lane.height - 8);
-    ctx.restore();
-  }
-
-  const glowPoi = (x: number, y: number, radius: number, fill: string, stroke: string): void => {
-    ctx.save();
-    ctx.shadowBlur = 18;
-    ctx.shadowColor = stroke;
-    ctx.fillStyle = fill;
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-  };
-
-  CITY_MAP.chargeStations.forEach((station) => glowPoi(station.x, station.y, station.radius * 0.45, "rgba(88, 240, 255, 0.15)", "#58f0ff"));
-  CITY_MAP.dispatchPoints.forEach((dispatch) => glowPoi(dispatch.x, dispatch.y, dispatch.radius * 0.48, "rgba(255, 179, 71, 0.18)", "#ffb347"));
-  CITY_MAP.deliveryPoints.forEach((point) => glowPoi(point.x, point.y, point.radius * 0.38, "rgba(255, 122, 209, 0.14)", "#ff7ad1"));
 };
 
 export const renderGame = (
@@ -257,6 +203,37 @@ export const renderGame = (
   ctx.save();
   ctx.translate(width / 2 - cameraX, height / 2 - cameraY);
   drawWorldGeometry(ctx);
+
+  // Draw boost lanes
+  for (const lane of CITY_MAP.boostLanes) {
+    ctx.save();
+    ctx.strokeStyle = "rgba(193, 255, 114, 0.7)";
+    ctx.fillStyle = "rgba(193, 255, 114, 0.08)";
+    ctx.fillRect(lane.x, lane.y, lane.width, lane.height);
+    ctx.lineWidth = 3;
+    ctx.setLineDash([16, 14]);
+    ctx.strokeRect(lane.x + 4, lane.y + 4, lane.width - 8, lane.height - 8);
+    ctx.restore();
+  }
+
+  // Draw POIs (points of interest)
+  const glowPoi = (x: number, y: number, radius: number, fill: string, stroke: string): void => {
+    ctx.save();
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = stroke;
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  CITY_MAP.chargeStations.forEach((station) => glowPoi(station.x, station.y, station.radius * 0.45, "rgba(88, 240, 255, 0.15)", "#58f0ff"));
+  CITY_MAP.dispatchPoints.forEach((dispatch) => glowPoi(dispatch.x, dispatch.y, dispatch.radius * 0.48, "rgba(255, 179, 71, 0.18)", "#ffb347"));
+  CITY_MAP.deliveryPoints.forEach((point) => glowPoi(point.x, point.y, point.radius * 0.38, "rgba(255, 122, 209, 0.14)", "#ff7ad1"));
 
   const destination = findPoiById(snapshot.mission.destinationId);
   if (destination) {
