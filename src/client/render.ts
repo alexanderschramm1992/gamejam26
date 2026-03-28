@@ -76,11 +76,12 @@ const drawVehicle = (
     ctx.rotate(visual.rotation);
     ctx.shadowBlur = 18;
     ctx.shadowColor = color;
-    const imgHeight = entity.radius * 1.8;
-    const imgWidth = imgHeight * 2.135;
+    // Draw image centered at origin, rotated 90 degrees
+    const imgHeight = entity.radius * 3.6;
+    const imgWidth = imgHeight * (sprite.width / sprite.height);
     ctx.globalAlpha = 0.95;
     ctx.save();
-    ctx.rotate(Math.PI);
+    ctx.rotate(Math.PI / 2);
     ctx.drawImage(sprite, -imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight);
     ctx.restore();
     ctx.globalAlpha = 1;
