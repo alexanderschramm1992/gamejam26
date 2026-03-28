@@ -285,7 +285,7 @@ export class GameServer {
 
   private applyEnemyContact(player: PlayerState, enemy: EnemyState, impactDamage: number): void {
     const archetype = ENEMY_ARCHETYPES[enemy.kind];
-    const damageMultiplier = this.adminSettings.enemyDamageMultiplier;
+    const damageMultiplier = this.getEnemyDamageMultiplier(enemy.kind);
     player.health -= impactDamage + archetype.contactDamage * 0.35 * damageMultiplier;
     enemy.health -= impactDamage * 0.45;
 
@@ -302,7 +302,6 @@ export class GameServer {
   private handleEnemyDrains(): void {
     const livePlayers = Array.from(this.players.values());
     const drainCooldownScale = Math.max(0.25, this.adminSettings.enemyFireRateMultiplier);
-    const drainMultiplier = this.adminSettings.enemyDamageMultiplier;
 
     for (const enemy of this.enemies) {
       if (enemy.destroyed || enemy.kind !== "drainer" || enemy.weaponCooldown > 0) {
@@ -319,7 +318,7 @@ export class GameServer {
         continue;
       }
 
-      const drainAmount = Math.min(player.battery, ENEMY_ARCHETYPES.drainer.batteryDrain * drainMultiplier);
+      const drainAmount = Math.min(player.battery, ENEMY_ARCHETYPES.drainer.batteryDrain * this.getEnemyDamageMultiplier("drainer"));
       if (drainAmount <= 0) {
         continue;
       }
@@ -337,6 +336,17 @@ export class GameServer {
         enemy.y
       );
     }
+  }
+
+  private getEnemyDamageMultiplier(kind: EnemyState["kind"]): number {
+    const base = this.adminSettings.enemyDamageMultiplier;
+    if (kind === "rammer") {
+      return base * this.adminSettings.enemyRammerDamageMultiplier;
+    }
+    if (kind === "gunner") {
+      return base * this.adminSettings.enemyGunnerDamageMultiplier;
+    }
+    return base * this.adminSettings.enemyDrainerDamageMultiplier;
   }
 
   private updateMission(dt: number): void {

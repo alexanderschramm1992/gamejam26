@@ -126,7 +126,6 @@ export const updateEnemies = (
 ): ProjectileState[] => {
   const projectiles: ProjectileState[] = [];
   const effectiveFireRate = Math.max(0.25, settings.enemyFireRateMultiplier);
-  const damageMultiplier = settings.enemyDamageMultiplier;
 
   for (const enemy of enemies) {
     if (enemy.destroyed) {
@@ -184,7 +183,8 @@ export const updateEnemies = (
     resolveWorldCollision(enemy);
 
     if (input.shoot && enemy.weaponCooldown <= 0 && archetype.projectileDamage > 0) {
-      const damage = archetype.projectileDamage * damageMultiplier;
+      const damage =
+        archetype.projectileDamage * settings.enemyDamageMultiplier * settings.enemyGunnerDamageMultiplier;
       const cooldown = archetype.fireCooldown <= 0 ? 0 : archetype.fireCooldown / effectiveFireRate;
       projectiles.push(fireEnemyProjectile(enemy, allocateProjectileId(), damage, cooldown));
     }

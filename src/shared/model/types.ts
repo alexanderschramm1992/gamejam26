@@ -115,6 +115,9 @@ export interface TeamState {
 export interface AdminSettings {
   enemyHealthMultiplier: number;
   enemyDamageMultiplier: number;
+  enemyRammerDamageMultiplier: number;
+  enemyGunnerDamageMultiplier: number;
+  enemyDrainerDamageMultiplier: number;
   enemyCountMultiplier: number;
   enemySpawnRateMultiplier: number;
   enemyFireRateMultiplier: number;

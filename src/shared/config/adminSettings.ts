@@ -36,6 +36,9 @@ export const ADMIN_SETTING_CATEGORIES: AdminCategoryDefinition[] = [
 export const ADMIN_SETTING_ORDER: Array<keyof AdminSettings> = [
   "enemyHealthMultiplier",
   "enemyDamageMultiplier",
+  "enemyRammerDamageMultiplier",
+  "enemyGunnerDamageMultiplier",
+  "enemyDrainerDamageMultiplier",
   "enemyCountMultiplier",
   "enemySpawnRateMultiplier",
   "enemyFireRateMultiplier",
@@ -61,9 +64,36 @@ export const ADMIN_SETTING_DEFS: Record<keyof AdminSettings, AdminSettingDefinit
   },
   enemyDamageMultiplier: {
     category: "difficulty",
-    label: "Gegnerschaden",
-    description: "Beeinflusst Projektilschaden, Rammschaden und Energieklau der Gegner.",
+    label: "Gegnerschaden global",
+    description: "Multipliziert alle drei Einzelregler fuer Rammer, Gunner und Drainer gemeinsam.",
     min: 0.3,
+    max: 3,
+    step: 0.1,
+    format: "multiplier"
+  },
+  enemyRammerDamageMultiplier: {
+    category: "difficulty",
+    label: "Rammer-Schaden",
+    description: "Skaliert Kontakt- und Rammschaden der Rammer separat.",
+    min: 0.2,
+    max: 3,
+    step: 0.1,
+    format: "multiplier"
+  },
+  enemyGunnerDamageMultiplier: {
+    category: "difficulty",
+    label: "Gunner-Schaden",
+    description: "Skaliert den Projektilschaden der Gunner separat.",
+    min: 0.2,
+    max: 3,
+    step: 0.1,
+    format: "multiplier"
+  },
+  enemyDrainerDamageMultiplier: {
+    category: "difficulty",
+    label: "Drainer-Staerke",
+    description: "Skaliert, wie schnell Drainer Akku absaugen und daraus Heilung gewinnen.",
+    min: 0.2,
     max: 3,
     step: 0.1,
     format: "multiplier"
@@ -172,6 +202,9 @@ export const ADMIN_SETTING_DEFS: Record<keyof AdminSettings, AdminSettingDefinit
 export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   enemyHealthMultiplier: 1,
   enemyDamageMultiplier: 1,
+  enemyRammerDamageMultiplier: 1,
+  enemyGunnerDamageMultiplier: 1,
+  enemyDrainerDamageMultiplier: 0.6,
   enemyCountMultiplier: 1,
   enemySpawnRateMultiplier: 1,
   enemyFireRateMultiplier: 1,
