@@ -43,6 +43,8 @@ const neutralInput: PlayerInput = {
   seq: 0
 };
 
+const DRAIN_BEAM_RANGE_MULTIPLIER = 3.6;
+
 export class GameServer {
   private readonly io: SocketServer;
   private readonly players = new Map<string, PlayerState>();
@@ -169,6 +171,7 @@ export class GameServer {
       () => this.allocateId("projectile")
     );
     this.projectiles.push(...enemyShots);
+    this.handleEnemyDrains();
 
     this.projectiles = updateProjectiles(
       this.projectiles,
@@ -293,21 +296,47 @@ export class GameServer {
       return;
     }
 
-    if (enemy.kind === "drainer") {
-      if (enemy.weaponCooldown <= 0) {
-        const drainAmount = Math.min(player.battery, archetype.batteryDrain * damageMultiplier);
-        if (drainAmount > 0) {
-          player.battery -= drainAmount;
-          enemy.battery = Math.min(enemy.maxBattery, enemy.battery + drainAmount);
-          enemy.health = Math.min(enemy.maxHealth, enemy.health + drainAmount * 0.18);
-          enemy.weaponCooldown = archetype.fireCooldown / Math.max(0.25, this.adminSettings.enemyFireRateMultiplier);
-          this.pushEvent("drain", `${enemy.kind} drained ${drainAmount.toFixed(0)} battery`, player.x, player.y, player.id);
-        }
-      }
-      return;
-    }
-
     this.pushEvent("hit", `${enemy.kind} clipped ${player.name}`, player.x, player.y, player.id);
+  }
+
+  private handleEnemyDrains(): void {
+    const livePlayers = Array.from(this.players.values());
+    const drainCooldownScale = Math.max(0.25, this.adminSettings.enemyFireRateMultiplier);
+    const drainMultiplier = this.adminSettings.enemyDamageMultiplier;
+
+    for (const enemy of this.enemies) {
+      if (enemy.destroyed || enemy.kind !== "drainer" || enemy.weaponCooldown > 0) {
+        continue;
+      }
+
+      const player = livePlayers.find((candidate) => candidate.id === enemy.targetPlayerId && !candidate.destroyed);
+      if (!player) {
+        continue;
+      }
+
+      const maxDrainDistance = player.radius * DRAIN_BEAM_RANGE_MULTIPLIER + enemy.radius;
+      if (distance(enemy, player) > maxDrainDistance) {
+        continue;
+      }
+
+      const drainAmount = Math.min(player.battery, ENEMY_ARCHETYPES.drainer.batteryDrain * drainMultiplier);
+      if (drainAmount <= 0) {
+        continue;
+      }
+
+      player.battery = Math.max(0, player.battery - drainAmount);
+      enemy.health = Math.min(enemy.maxHealth, enemy.health + drainAmount * 0.18);
+      enemy.weaponCooldown = ENEMY_ARCHETYPES.drainer.fireCooldown / drainCooldownScale;
+      this.pushEvent(
+        "drain",
+        `${enemy.kind} drained ${drainAmount.toFixed(0)} battery`,
+        player.x,
+        player.y,
+        player.id,
+        enemy.x,
+        enemy.y
+      );
+    }
   }
 
   private updateMission(dt: number): void {
@@ -542,9 +571,17 @@ export class GameServer {
     };
   }
 
-  private pushEvent(type: WorldEventType, text: string, x?: number, y?: number, entityId?: string): void {
+  private pushEvent(
+    type: WorldEventType,
+    text: string,
+    x?: number,
+    y?: number,
+    entityId?: string,
+    sourceX?: number,
+    sourceY?: number
+  ): void {
     this.eventCounter += 1;
-    this.recentEvents.push({ id: this.eventCounter, type, text, x, y, entityId });
+    this.recentEvents.push({ id: this.eventCounter, type, text, x, y, entityId, sourceX, sourceY });
     if (this.recentEvents.length > 20) {
       this.recentEvents.splice(0, this.recentEvents.length - 20);
     }

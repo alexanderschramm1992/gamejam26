@@ -10,6 +10,7 @@ export interface ResourceUpdateResult {
 
 export interface ResourceRuntimeOptions {
   chargeMultiplier?: number;
+  consumesBattery?: boolean;
 }
 
 export const updateVehicleResources = (
@@ -24,16 +25,21 @@ export const updateVehicleResources = (
   let chargedThisFrame = false;
   let boostedThisFrame = false;
   const chargeMultiplier = options.chargeMultiplier ?? 1;
+  const consumesBattery = options.consumesBattery ?? true;
 
-  const throttleDrain = Math.max(0, input.throttle) * GAME_CONFIG.battery.throttleDrain;
-  const speedDrain = (vehicle.speed / 300) * GAME_CONFIG.battery.speedDrain;
-  vehicle.battery = clamp(
-    vehicle.battery - (GAME_CONFIG.battery.idleDrain + throttleDrain + speedDrain) * dt,
-    0,
-    vehicle.maxBattery
-  );
+  if (consumesBattery) {
+    const throttleDrain = Math.max(0, input.throttle) * GAME_CONFIG.battery.throttleDrain;
+    const speedDrain = (vehicle.speed / 300) * GAME_CONFIG.battery.speedDrain;
+    vehicle.battery = clamp(
+      vehicle.battery - (GAME_CONFIG.battery.idleDrain + throttleDrain + speedDrain) * dt,
+      0,
+      vehicle.maxBattery
+    );
+  } else {
+    vehicle.battery = vehicle.maxBattery;
+  }
 
-  if (surface.chargeStation && (input.brake || vehicle.speed < 40)) {
+  if (surface.chargeStation && consumesBattery && (input.brake || vehicle.speed < 40)) {
     vehicle.charging = true;
     chargedThisFrame = true;
     vehicle.battery = clamp(
@@ -46,11 +52,13 @@ export const updateVehicleResources = (
   if (surface.boostLane) {
     boostedThisFrame = true;
     vehicle.boostedUntil = Math.max(vehicle.boostedUntil, now + GAME_CONFIG.boost.duration);
-    vehicle.battery = clamp(
-      vehicle.battery + GAME_CONFIG.battery.boostLaneChargeRate * chargeMultiplier * dt,
-      0,
-      vehicle.maxBattery
-    );
+    if (consumesBattery) {
+      vehicle.battery = clamp(
+        vehicle.battery + GAME_CONFIG.battery.boostLaneChargeRate * chargeMultiplier * dt,
+        0,
+        vehicle.maxBattery
+      );
+    }
   }
 
   return { chargedThisFrame, boostedThisFrame };

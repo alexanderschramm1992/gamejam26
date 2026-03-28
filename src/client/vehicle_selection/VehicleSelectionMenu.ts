@@ -53,7 +53,7 @@ export class VehicleSelectionMenu {
 
     const intro = document.createElement("p");
     intro.className = "vehicle-menu__intro";
-    intro.textContent = "Links/Rechts oder A/D wechseln das Fahrzeug. Enter oder Klick bestaetigt die aktuelle Auswahl.";
+    intro.textContent = "Mit den Pfeiltasten wechselst du das Fahrzeug. Enter oder Klick bestaetigt die aktuelle Auswahl.";
 
     const form = document.createElement("div");
     form.className = "vehicle-menu__form";
@@ -172,7 +172,7 @@ export class VehicleSelectionMenu {
 
       this.tryStartMenuMusic();
 
-      if (event.code === "ArrowLeft" || event.code === "KeyA") {
+      if (event.code === "ArrowLeft") {
         this.controller.previous();
         this.playSwitchSound();
         this.render();
@@ -180,7 +180,7 @@ export class VehicleSelectionMenu {
         return;
       }
 
-      if (event.code === "ArrowRight" || event.code === "KeyD") {
+      if (event.code === "ArrowRight") {
         this.controller.next();
         this.playSwitchSound();
         this.render();

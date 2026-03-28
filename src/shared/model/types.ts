@@ -155,6 +155,8 @@ export interface WorldEvent {
   x?: number;
   y?: number;
   entityId?: string;
+  sourceX?: number;
+  sourceY?: number;
 }
 
 export interface GameSnapshot {

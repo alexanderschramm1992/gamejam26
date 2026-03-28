@@ -72,6 +72,14 @@ export interface VisualCache {
   projectiles: Map<string, VisualEntity>;
 }
 
+export interface DrainBeamVisual {
+  sourceX: number;
+  sourceY: number;
+  targetX: number;
+  targetY: number;
+  expiresAt: number;
+}
+
 const panel = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number): void => {
   ctx.fillStyle = "rgba(5, 16, 24, 0.72)";
   ctx.strokeStyle = "rgba(88, 240, 255, 0.22)";
@@ -160,6 +168,45 @@ const drawProjectile = (
   ctx.restore();
 };
 
+const drawDrainBeam = (
+  ctx: CanvasRenderingContext2D,
+  beam: DrainBeamVisual,
+  nowMs: number
+): void => {
+  const remaining = clamp((beam.expiresAt - nowMs) / 180, 0, 1);
+  if (remaining <= 0) {
+    return;
+  }
+
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.shadowBlur = 22;
+  ctx.shadowColor = "rgba(116, 255, 161, 0.95)";
+
+  ctx.strokeStyle = `rgba(72, 255, 124, ${0.28 + remaining * 0.34})`;
+  ctx.lineWidth = 8 * remaining + 2;
+  ctx.beginPath();
+  ctx.moveTo(beam.sourceX, beam.sourceY);
+  ctx.lineTo(beam.targetX, beam.targetY);
+  ctx.stroke();
+
+  ctx.strokeStyle = `rgba(201, 255, 214, ${0.45 + remaining * 0.4})`;
+  ctx.lineWidth = 3 * remaining + 1.5;
+  ctx.beginPath();
+  ctx.moveTo(beam.sourceX, beam.sourceY);
+  ctx.lineTo(beam.targetX, beam.targetY);
+  ctx.stroke();
+
+  ctx.fillStyle = `rgba(120, 255, 160, ${0.3 + remaining * 0.4})`;
+  ctx.beginPath();
+  ctx.arc(beam.sourceX, beam.sourceY, 5 + remaining * 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(beam.targetX, beam.targetY, 4 + remaining * 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+};
+
 const drawWorldGeometry = (ctx: CanvasRenderingContext2D): void => {
   ctx.fillStyle = "#102231";
   ctx.fillRect(0, 0, CITY_MAP.width, CITY_MAP.height);
@@ -237,7 +284,9 @@ export const renderGame = (
   localPlayerId: string | null,
   adminPlayerId: string | null,
   visuals: VisualCache,
-  audio?: AudioMixer
+  audio: AudioMixer | undefined = undefined,
+  drainBeams: DrainBeamVisual[] = [],
+  nowMs = performance.now()
 ): void => {
   const width = canvas.width / window.devicePixelRatio;
   const height = canvas.height / window.devicePixelRatio;
@@ -304,6 +353,10 @@ export const renderGame = (
         player.id === localPlayerId ? localPlayerCarImage : null
       );
     }
+  }
+
+  for (const beam of drainBeams) {
+    drawDrainBeam(ctx, beam, nowMs);
   }
   ctx.restore();
 

@@ -180,7 +180,7 @@ export const updateEnemies = (
       offRoad: !surface.onRoad,
       boosted: now < enemy.boostedUntil
     });
-    updateVehicleResources(enemy, input, surface, dt, now);
+    updateVehicleResources(enemy, input, surface, dt, now, { consumesBattery: false });
     resolveWorldCollision(enemy);
 
     if (input.shoot && enemy.weaponCooldown <= 0 && archetype.projectileDamage > 0) {

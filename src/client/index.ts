@@ -1,6 +1,6 @@
 import { io, type Socket } from "socket.io-client";
 import type { ClientEvents, ServerEvents } from "../shared/network/protocol";
-import type { GameSnapshot } from "../shared/model/types";
+import type { GameSnapshot, WorldEvent } from "../shared/model/types";
 import { lerp, wrapAngle } from "../shared/utils/math";
 import { AdminMenu } from "./AdminMenu";
 import { AudioMixer } from "./AudioMixer";
@@ -11,6 +11,7 @@ import {
 } from "./vehicle_selection/VehicleSelectionMenu";
 import {
   renderGame,
+  type DrainBeamVisual,
   type VisualCache,
   type VisualEntity,
   loadCarAsset,
@@ -47,6 +48,7 @@ let snapshot: GameSnapshot | null = null;
 let inputSequence = 0;
 let lastRenderedEvent = 0;
 let vehicleSelectionConfirmed = false;
+const drainBeams: DrainBeamVisual[] = [];
 
 const getViewportSize = (): { width: number; height: number } => ({
   width: Math.max(640, Math.floor(canvas.clientWidth || window.innerWidth)),
@@ -101,6 +103,28 @@ const setAdminMenuOpen = (open: boolean): void => {
   input.setEnabled(!open);
 };
 
+const createDrainBeamFromEvent = (event: WorldEvent): void => {
+  if (event.type !== "drain" || event.x === undefined || event.y === undefined || event.sourceX === undefined || event.sourceY === undefined) {
+    return;
+  }
+
+  drainBeams.push({
+    sourceX: event.sourceX,
+    sourceY: event.sourceY,
+    targetX: event.x,
+    targetY: event.y,
+    expiresAt: performance.now() + 180
+  });
+};
+
+const pruneExpiredDrainBeams = (nowMs: number): void => {
+  for (let index = drainBeams.length - 1; index >= 0; index -= 1) {
+    if (drainBeams[index] && drainBeams[index].expiresAt <= nowMs) {
+      drainBeams.splice(index, 1);
+    }
+  }
+};
+
 const updateOverlay = (): void => {
   if (!snapshot) {
     statusEl.textContent = "Verbinde mit Server...";
@@ -123,6 +147,7 @@ score ${snapshot.team.score} | deliveries ${snapshot.team.deliveries} | danger $
 
   const freshEvents = snapshot.recentEvents.filter((event) => event.id > lastRenderedEvent);
   if (freshEvents.length > 0) {
+    freshEvents.forEach(createDrainBeamFromEvent);
     audio.playEvents(freshEvents);
     lastRenderedEvent = freshEvents[freshEvents.length - 1].id;
   }
@@ -185,14 +210,16 @@ window.addEventListener("blur", () => {
 });
 
 const loop = (): void => {
+  const nowMs = performance.now();
   inputSequence += 1;
   socket.emit("input", input.snapshot(inputSequence));
+  pruneExpiredDrainBeams(nowMs);
 
   if (snapshot) {
     syncVisualMap(visuals.players, snapshot.players);
     syncVisualMap(visuals.enemies, snapshot.enemies);
     syncVisualMap(visuals.projectiles, snapshot.projectiles);
-    renderGame(context, canvas, snapshot, localPlayerId, adminPlayerId, visuals, audio);
+    renderGame(context, canvas, snapshot, localPlayerId, adminPlayerId, visuals, audio, drainBeams, nowMs);
   } else {
     const viewport = getViewportSize();
     context.clearRect(0, 0, viewport.width, viewport.height);
