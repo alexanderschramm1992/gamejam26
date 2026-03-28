@@ -73,13 +73,12 @@ const drawVehicle = (
     ctx.rotate(visual.rotation);
     ctx.shadowBlur = 18;
     ctx.shadowColor = color;
-    // Draw image centered at origin, rotated 180 degrees
-    // Original car.png ratio: 444x208 = 2.135:1 (width:height)
-    const imgHeight = entity.radius * 1.8;
-    const imgWidth = imgHeight * 2.135;
+    // Draw image centered at origin, rotated 90 degrees
+    const imgHeight = entity.radius * 3.6;
+    const imgWidth = imgHeight * (carImage.width / carImage.height);
     ctx.globalAlpha = 0.95;
     ctx.save();
-    ctx.rotate(Math.PI);
+    ctx.rotate(Math.PI / 2);
     ctx.drawImage(carImage, -imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight);
     ctx.restore();
     ctx.globalAlpha = 1;
