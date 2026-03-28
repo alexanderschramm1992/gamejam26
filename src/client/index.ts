@@ -128,7 +128,7 @@ const loop = (): void => {
     syncVisualMap(visuals.players, snapshot.players);
     syncVisualMap(visuals.enemies, snapshot.enemies);
     syncVisualMap(visuals.projectiles, snapshot.projectiles);
-    renderGame(context, canvas, snapshot, localPlayerId, visuals);
+    renderGame(context, canvas, snapshot, localPlayerId, visuals, audio);
   } else {
     const viewport = getViewportSize();
     context.clearRect(0, 0, viewport.width, viewport.height);

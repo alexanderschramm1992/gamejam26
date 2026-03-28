@@ -1,6 +1,7 @@
 import { CITY_MAP, findPoiById } from "../shared/map/cityMap";
 import type { EnemyState, GameSnapshot, PlayerState, ProjectileState } from "../shared/model/types";
 import { clamp } from "../shared/utils/math";
+import type { AudioMixer } from "./AudioMixer";
 
 export interface VisualEntity {
   x: number;
@@ -212,13 +213,23 @@ export const renderGame = (
   canvas: HTMLCanvasElement,
   snapshot: GameSnapshot,
   localPlayerId: string | null,
-  visuals: VisualCache
+  visuals: VisualCache,
+  audio?: AudioMixer
 ): void => {
   const width = canvas.width / window.devicePixelRatio;
   const height = canvas.height / window.devicePixelRatio;
   ctx.clearRect(0, 0, width, height);
 
   const localPlayer = snapshot.players.find((player) => player.id === localPlayerId);
+
+  // Update engine sound based on player speed
+  if (audio && localPlayer) {
+    const speed = Math.abs(localPlayer.speed);
+    // Use maxForwardSpeed as reference for max sound pitch (from gameConfig)
+    const maxSpeed = 280; // Typical max speed for player vehicle
+    audio.updateEngineSound(speed, maxSpeed);
+  }
+
   const cameraX = clamp(localPlayer?.x ?? CITY_MAP.width / 2, width / 2, CITY_MAP.width - width / 2);
   const cameraY = clamp(localPlayer?.y ?? CITY_MAP.height / 2, height / 2, CITY_MAP.height - height / 2);
 
