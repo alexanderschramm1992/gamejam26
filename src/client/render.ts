@@ -79,6 +79,11 @@ const BUILDING_ASSET_PATHS = [
 ];
 
 let buildingImages: HTMLImageElement[] = [];
+let targetPointerImage: HTMLImageElement | null = null;
+
+export const loadHudAssets = async (): Promise<void> => {
+  targetPointerImage = await loadImage("/assets/hud/sushi.png");
+};
 
 const hashString = (value: string): number => {
   let hash = 0;
@@ -465,6 +470,43 @@ export const renderGame = (
     drawDrainBeam(ctx, beam, nowMs);
   }
   ctx.restore();
+
+  const drawTargetIndicator = (
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    localPlayer: PlayerState | undefined,
+    mission: GameSnapshot["mission"]
+  ): void => {
+    if (!localPlayer || !targetPointerImage) {
+      return;
+    }
+
+    const targetPoi = mission.status === "active"
+      ? findPoiById(mission.destinationId)
+      : findPoiById(mission.dispatchId);
+
+    if (!targetPoi) {
+      return;
+    }
+
+    const deltaX = targetPoi.x - localPlayer.x;
+    const deltaY = targetPoi.y - localPlayer.y;
+    const iconRotation = Math.atan2(deltaY, deltaX) + Math.PI / 2;
+    const iconHeight = 48;
+    const iconWidth = iconHeight * (targetPointerImage.width / targetPointerImage.height);
+    const centerX = width / 2;
+    const centerY = 34;
+
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.rotate(iconRotation);
+    ctx.globalAlpha = 0.94;
+    ctx.drawImage(targetPointerImage, -iconWidth / 2, -iconHeight / 2, iconWidth, iconHeight);
+    ctx.restore();
+  };
+
+  drawTargetIndicator(ctx, width, height, localPlayer, snapshot.mission);
 
   panel(ctx, 22, 22, 260, 112);
   ctx.fillStyle = "#f4f8ff";

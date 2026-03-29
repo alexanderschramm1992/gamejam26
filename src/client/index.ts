@@ -18,7 +18,8 @@ import {
   type VisualEntity,
   loadCarAsset,
   setLocalPlayerCarAsset,
-  loadBuildingAssets
+  loadBuildingAssets,
+  loadHudAssets
 } from "./render";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement | null;
@@ -286,6 +287,7 @@ vehicleMenu.setOpen(true);
 loadCarAsset().catch((error) => console.warn("Car asset loading failed, using fallback:", error));
 loadStreetTiles().catch((error) => console.warn("Street tiles loading failed, using fallback:", error));
 loadBuildingAssets().catch((error) => console.warn("Building asset loading failed, using fallback:", error));
+loadHudAssets().catch((error) => console.warn("HUD asset loading failed, using fallback:", error));
 void setLocalPlayerCarAsset(vehicleMenu.getSelectedVehicle().assetPath).catch((error: any) =>
   console.warn("Vehicle selection asset loading failed, using fallback:", error)
 );
