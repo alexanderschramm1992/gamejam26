@@ -152,6 +152,7 @@ export type WorldEventType =
   | "shot"
   | "hit"
   | "enemy-destroyed"
+  | "player-destroyed"
   | "mission-accepted"
   | "mission-completed"
   | "mission-failed"

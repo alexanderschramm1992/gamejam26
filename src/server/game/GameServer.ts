@@ -65,6 +65,7 @@ export class GameServer {
     winnerName: null
   };
   private readonly recentEvents: WorldEvent[] = [];
+  private readonly collisionEventTimestamps = new Map<string, number>();
   private tickCounter = 0;
   private entityCounter = 0;
   private eventCounter = 0;
@@ -242,6 +243,14 @@ export class GameServer {
       if (hitWall && !this.isPlayerGhost(player)) {
         const playerSpeed = Math.hypot(player.vx, player.vy);
         player.health -= Math.max(2, playerSpeed * playerTuning.collisionDamage * 0.5);
+        if (playerSpeed > 12) {
+          const lastCollisionTick = this.collisionEventTimestamps.get(player.id) ?? -999;
+          const collisionCooldownTicks = Math.max(1, Math.round(GAME_CONFIG.tickRate * 0.18));
+          if (this.tickCounter - lastCollisionTick >= collisionCooldownTicks) {
+            this.collisionEventTimestamps.set(player.id, this.tickCounter);
+            this.pushEvent("hit", `${player.name} hit the wall`, player.x, player.y, player.id);
+          }
+        }
       }
 
       if (input.shoot && player.weaponCooldown <= 0 && player.battery > GAME_CONFIG.battery.shootDrain) {
@@ -319,6 +328,12 @@ export class GameServer {
           this.applyEnemyContact(a, b, impactDamage);
         } else if (a.type === "enemy" && b.type === "player") {
           this.applyEnemyContact(b, a, impactDamage);
+        } else if (a.type === "player" && b.type === "player") {
+          const impactX = (a.x + b.x) / 2;
+          const impactY = (a.y + b.y) / 2;
+          if (impactDamage > 4) {
+            this.pushEvent("hit", `${a.name} collided with ${b.name}`, impactX, impactY, a.id);
+          }
         }
       }
     }
@@ -515,6 +530,7 @@ export class GameServer {
     player.score -= DEATH_SCORE_PENALTY;
     this.team.score -= DEATH_SCORE_PENALTY;
     this.pushEvent("hit", `${player.name} lost ${DEATH_SCORE_PENALTY} points`, player.x, player.y, player.id);
+    this.pushEvent("player-destroyed", `${player.name} was destroyed`, player.x, player.y, player.id);
 
     if (this.mission.acceptedBy === player.id && this.mission.status !== "cooldown") {
       this.resetMissionToReady(`${player.name} dropped the sushi order`);

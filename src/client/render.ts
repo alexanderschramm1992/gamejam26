@@ -12,6 +12,22 @@ export interface VisualEntity {
   rotation: number;
 }
 
+export interface SparkEffect {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  expiresAt: number;
+}
+
+export interface ExplosionEffect {
+  x: number;
+  y: number;
+  startAt: number;
+  duration: number;
+  maxRadius: number;
+}
+
 let carImage: HTMLImageElement | null = null;
 let localPlayerCarImage: HTMLImageElement | null = null;
 const imageCache = new Map<string, Promise<HTMLImageElement>>();
@@ -334,6 +350,74 @@ const drawProjectile = (
   ctx.restore();
 };
 
+const drawSparkEffect = (
+  ctx: CanvasRenderingContext2D,
+  spark: SparkEffect,
+  nowMs: number
+): void => {
+  const remaining = clamp((spark.expiresAt - nowMs) / 240, 0, 1);
+  if (remaining <= 0) {
+    return;
+  }
+
+  ctx.save();
+  ctx.strokeStyle = `rgba(255, 245, 200, ${0.7 * remaining})`;
+  ctx.lineWidth = 2 * Math.max(0.5, remaining);
+  ctx.beginPath();
+  ctx.moveTo(spark.x, spark.y);
+  ctx.lineTo(spark.x + spark.vx * remaining * 0.6, spark.y + spark.vy * remaining * 0.6);
+  ctx.stroke();
+  ctx.fillStyle = `rgba(255, 255, 220, ${0.8 * remaining})`;
+  ctx.beginPath();
+  ctx.arc(spark.x, spark.y, 1.8 + remaining * 1.8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+};
+
+const drawExplosionEffect = (
+  ctx: CanvasRenderingContext2D,
+  explosion: ExplosionEffect,
+  nowMs: number
+): void => {
+  const elapsed = nowMs - explosion.startAt;
+  const progress = clamp(elapsed / explosion.duration, 0, 1);
+  if (progress <= 0 || progress >= 1) {
+    return;
+  }
+
+  const radius = explosion.maxRadius * progress;
+  const alpha = 0.9 * (1 - progress);
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = "rgba(255, 180, 90, 0.22)";
+  ctx.beginPath();
+  ctx.arc(explosion.x, explosion.y, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = "rgba(255, 220, 170, 0.35)";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(explosion.x, explosion.y, radius * 0.7, 0, Math.PI * 2);
+  ctx.stroke();
+
+  for (let index = 0; index < 6; index += 1) {
+    const angle = (index / 6) * Math.PI * 2;
+    const length = radius * (0.9 + 0.2 * Math.sin(progress * Math.PI));
+    ctx.beginPath();
+    ctx.moveTo(
+      explosion.x + Math.cos(angle) * radius * 0.35,
+      explosion.y + Math.sin(angle) * radius * 0.35
+    );
+    ctx.lineTo(
+      explosion.x + Math.cos(angle) * length,
+      explosion.y + Math.sin(angle) * length
+    );
+    ctx.stroke();
+  }
+  ctx.restore();
+};
+
 const drawDrainBeam = (
   ctx: CanvasRenderingContext2D,
   beam: DrainBeamVisual,
@@ -555,6 +639,8 @@ export const renderGame = (
   visuals: VisualCache,
   audio: AudioMixer | undefined = undefined,
   drainBeams: DrainBeamVisual[] = [],
+  sparkEffects: SparkEffect[] = [],
+  explosionEffects: ExplosionEffect[] = [],
   tireTracks: TireTrackMark[] = [],
   nowMs = performance.now(),
   localPlayerAimAngle = 0,
@@ -743,6 +829,22 @@ export const renderGame = (
         nowMs
       );
     }
+  }
+
+  for (const spark of sparkEffects) {
+    drawSparkEffect(ctx, spark, nowMs);
+  }
+
+  for (const explosion of explosionEffects) {
+    drawExplosionEffect(ctx, explosion, nowMs);
+  }
+
+  for (const spark of sparkEffects) {
+    drawSparkEffect(ctx, spark, nowMs);
+  }
+
+  for (const explosion of explosionEffects) {
+    drawExplosionEffect(ctx, explosion, nowMs);
   }
 
   for (const beam of drainBeams) {

@@ -17,6 +17,8 @@ import {
 import {
   renderGame,
   type DrainBeamVisual,
+  type ExplosionEffect,
+  type SparkEffect,
   type VisualCache,
   type VisualEntity,
   loadCarAsset,
@@ -61,6 +63,8 @@ let lastStatusText = "";
 let lastFeedSignature = "";
 let lastSnapshotReceivedAtMs = performance.now();
 const drainBeams: DrainBeamVisual[] = [];
+const sparkEffects: SparkEffect[] = [];
+const explosionEffects: ExplosionEffect[] = [];
 const tireTrackManager = new TireTrackManager();
 
 // Debug overlay variables
@@ -105,6 +109,62 @@ const shouldSendInput = (nextInput: PlayerInput, nowMs: number): boolean => {
     nextInput.throttle !== lastSentInput.throttle ||
     nextInput.steer !== lastSentInput.steer
   );
+};
+
+const spawnSparkEffects = (x: number, y: number, count = 10): void => {
+  const nowMs = performance.now();
+  for (let index = 0; index < count; index += 1) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 24 + Math.random() * 32;
+    sparkEffects.push({
+      x,
+      y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      expiresAt: nowMs + 180 + Math.random() * 120
+    });
+  }
+};
+
+const spawnExplosionEffects = (x: number, y: number): void => {
+  explosionEffects.push({
+    x,
+    y,
+    startAt: performance.now(),
+    duration: 520,
+    maxRadius: 44 + Math.random() * 18
+  });
+};
+
+const createVisualEffectsFromEvent = (event: WorldEvent): void => {
+  if (event.x === undefined || event.y === undefined) {
+    return;
+  }
+
+  switch (event.type) {
+    case "hit":
+      spawnSparkEffects(event.x, event.y, 8);
+      break;
+    case "enemy-destroyed":
+    case "player-destroyed":
+      spawnExplosionEffects(event.x, event.y);
+      break;
+    default:
+      break;
+  }
+};
+
+const pruneExpiredVisualEffects = (nowMs: number): void => {
+  for (let index = sparkEffects.length - 1; index >= 0; index -= 1) {
+    if (sparkEffects[index].expiresAt <= nowMs) {
+      sparkEffects.splice(index, 1);
+    }
+  }
+  for (let index = explosionEffects.length - 1; index >= 0; index -= 1) {
+    if (explosionEffects[index].startAt + explosionEffects[index].duration <= nowMs) {
+      explosionEffects.splice(index, 1);
+    }
+  }
 };
 
 const resize = (): void => {
@@ -242,7 +302,10 @@ score ${snapshot.team.score} | deliveries ${snapshot.team.deliveries} | danger $
 
   const freshEvents = snapshot.recentEvents.filter((event) => event.id > lastRenderedEvent);
   if (freshEvents.length > 0) {
-    freshEvents.forEach(createDrainBeamFromEvent);
+    freshEvents.forEach((event) => {
+      createDrainBeamFromEvent(event);
+      createVisualEffectsFromEvent(event);
+    });
     audio.playEvents(freshEvents);
     lastRenderedEvent = freshEvents[freshEvents.length - 1].id;
   }
@@ -358,6 +421,7 @@ const loop = (): void => {
     lastSentInput = nextInput;
   }
   pruneExpiredDrainBeams(nowMs);
+  pruneExpiredVisualEffects(nowMs);
   syncGameOverState(nowMs);
 
   if (snapshot) {
@@ -367,7 +431,21 @@ const loop = (): void => {
     tireTrackManager.updateTracks(snapshot.players, nowMs);
     const tireTracks = tireTrackManager.getMarks();
     
-    renderGame(context, canvas, snapshot, localPlayerId, adminPlayerId, visuals, audio, drainBeams, tireTracks, nowMs, aimAngle);
+    renderGame(
+      context,
+      canvas,
+      snapshot,
+      localPlayerId,
+      adminPlayerId,
+      visuals,
+      audio,
+      drainBeams,
+      sparkEffects,
+      explosionEffects,
+      tireTracks,
+      nowMs,
+      aimAngle
+    );
   } else {
     const viewport = getViewportSize();
     context.clearRect(0, 0, viewport.width, viewport.height);

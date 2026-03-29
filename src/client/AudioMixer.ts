@@ -214,6 +214,9 @@ export class AudioMixer {
         case "enemy-destroyed":
           this.playTone(90, 0.18, "sawtooth", 0.05);
           break;
+        case "player-destroyed":
+          this.playTone(72, 0.26, "sawtooth", 0.12);
+          break;
         case "mission-accepted":
           this.playTone(420, 0.1, "triangle", 0.04);
           break;
