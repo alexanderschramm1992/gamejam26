@@ -34,7 +34,6 @@ export class InputController {
       return {
         throttle: 0,
         steer: 0,
-        handbrake: false,
         shoot: false,
         interact: false,
         seq
@@ -51,7 +50,6 @@ export class InputController {
     return {
       throttle,
       steer,
-      handbrake: pressedKeys.has("ShiftLeft") || pressedKeys.has("ShiftRight"),
       shoot: pressedKeys.has("Space"),
       interact: pressedKeys.has("KeyE"),
       seq

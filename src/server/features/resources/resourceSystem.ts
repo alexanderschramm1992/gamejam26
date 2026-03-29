@@ -40,7 +40,7 @@ export const updateVehicleResources = (
     vehicle.battery = vehicle.maxBattery;
   }
 
-  if (surface.chargeStation && consumesBattery && (input.handbrake || Math.hypot(vehicle.vx, vehicle.vy) < 40)) {
+  if (surface.chargeStation && consumesBattery && Math.hypot(vehicle.vx, vehicle.vy) < 40) {
     vehicle.charging = true;
     chargedThisFrame = true;
     vehicle.battery = clamp(

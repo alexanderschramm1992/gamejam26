@@ -164,12 +164,10 @@ const makeInput = (
   const currentSpeed = Math.hypot(enemy.vx, enemy.vy);
 
   let throttle = Math.abs(pathAngleDelta) > 2.4 && currentSpeed > 140 ? 0.2 : 1;
-  let handbrake = Math.abs(pathAngleDelta) > 1.9 && currentSpeed > 140;
   let shoot = false;
 
   if (enemy.kind === "rammer") {
     throttle = Math.abs(pathAngleDelta) > 2.45 ? 0.45 : 1;
-    handbrake = Math.abs(pathAngleDelta) > 1.4 && currentSpeed > 175;
   } else if (enemy.kind === "gunner") {
     throttle =
       Math.abs(pathAngleDelta) > 1.45
@@ -179,9 +177,6 @@ const makeInput = (
           : targetDistance > ENEMY_ARCHETYPES.gunner.preferredRange * 1.05
             ? 0.85
             : 0.15;
-    handbrake =
-      (Math.abs(pathAngleDelta) > 1.2 && currentSpeed > 115) ||
-      (targetDistance < ENEMY_ARCHETYPES.gunner.preferredRange * 0.5 && currentSpeed > 125);
     shoot = targetDistance < ENEMY_ARCHETYPES.gunner.preferredRange && Math.abs(aimAngleDelta) < 0.22;
   } else if (enemy.kind === "drainer") {
     throttle =
@@ -190,13 +185,11 @@ const makeInput = (
         : targetDistance < ENEMY_ARCHETYPES.drainer.preferredRange
           ? 0.5
           : 1;
-    handbrake = Math.abs(pathAngleDelta) > 1.25 && currentSpeed > 150;
   }
 
   return {
     throttle,
     steer: pathAngleDelta > 0.08 ? 1 : pathAngleDelta < -0.08 ? -1 : 0,
-    handbrake,
     shoot,
     interact: false,
     seq: 0
@@ -337,7 +330,6 @@ export const updateEnemies = (
     const input = makeInput(enemy, target, avoidance.steeringTarget, aimTarget);
     if (brain.reverseTimer > 0) {
       input.throttle = -0.72;
-      input.handbrake = false;
       input.shoot = false;
       input.steer = avoidance.sideSign === 0 ? brain.reverseSteer : avoidance.sideSign;
       brain.repathTimer = Math.min(brain.repathTimer, FORCED_REPATH_TIME);
