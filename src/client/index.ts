@@ -61,6 +61,13 @@ let lastFeedSignature = "";
 const drainBeams: DrainBeamVisual[] = [];
 const tireTrackManager = new TireTrackManager();
 
+// Debug overlay variables
+let lastFrameTime = 0;
+let fps = 0;
+let serverTickRate = 0;
+let lastTick = 0;
+let lastTickTime = 0;
+
 const getViewportSize = (): { width: number; height: number } => ({
   width: Math.max(640, Math.floor(canvas.clientWidth || window.innerWidth)),
   height: Math.max(520, Math.floor(canvas.clientHeight || window.innerHeight * 0.7))
@@ -228,9 +235,22 @@ socket.on("adminState", (state) => {
 });
 
 socket.on("snapshot", (nextSnapshot) => {
+  const nowMs = performance.now();
+  
+  // Calculate server tick rate
+  if (lastTick > 0 && lastTickTime > 0) {
+    const tickDelta = nextSnapshot.tick - lastTick;
+    const timeDelta = nowMs - lastTickTime;
+    if (timeDelta > 0) {
+      serverTickRate = (tickDelta / timeDelta) * 1000; // ticks per second
+    }
+  }
+  lastTick = nextSnapshot.tick;
+  lastTickTime = nowMs;
+  
   snapshot = nextSnapshot;
   updateOverlay();
-  syncGameOverState(performance.now());
+  syncGameOverState(nowMs);
 });
 
 adminMenu.onUpdate((patch) => {
@@ -268,6 +288,14 @@ window.addEventListener("blur", () => {
 
 const loop = (): void => {
   const nowMs = performance.now();
+  
+  // Calculate FPS
+  if (lastFrameTime > 0) {
+    const deltaTime = nowMs - lastFrameTime;
+    fps = 1000 / deltaTime;
+  }
+  lastFrameTime = nowMs;
+  
   const localPlayer = findLocalPlayer(snapshot);
   const viewport = getViewportSize();
   const cameraX = clamp(localPlayer?.x ?? CITY_MAP.width / 2, viewport.width / 2, CITY_MAP.width - viewport.width / 2);
@@ -284,8 +312,8 @@ const loop = (): void => {
     syncVisualMap(visuals.projectiles, snapshot.projectiles);
     tireTrackManager.updateTracks(snapshot.players, nowMs);
     const tireTracks = tireTrackManager.getMarks();
-
-    renderGame(context, canvas, snapshot, localPlayerId, adminPlayerId, visuals, audio, drainBeams, tireTracks, nowMs, aimAngle);
+    
+    renderGame(context, canvas, snapshot, localPlayerId, adminPlayerId, visuals, audio, drainBeams, tireTracks, nowMs, aimAngle, fps, serverTickRate);
   } else {
     const viewport = getViewportSize();
     context.clearRect(0, 0, viewport.width, viewport.height);

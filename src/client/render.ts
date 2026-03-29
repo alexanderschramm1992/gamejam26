@@ -490,7 +490,9 @@ export const renderGame = (
   drainBeams: DrainBeamVisual[] = [],
   tireTracks: TireTrackMark[] = [],
   nowMs = performance.now(),
-  localPlayerAimAngle = 0
+  localPlayerAimAngle = 0,
+  fps = 0,
+  serverTickRate = 0
 ): void => {
   const width = canvas.width / window.devicePixelRatio;
   const height = canvas.height / window.devicePixelRatio;
@@ -716,4 +718,15 @@ export const renderGame = (
       ctx.fillText("Charging on station", 42, height - 20);
     }
   }
+
+  // Debug overlay
+  panel(ctx, width - 222, 22, 200, 60);
+  ctx.fillStyle = "#f4f8ff";
+  ctx.textAlign = "left";
+  ctx.font = "700 14px Trebuchet MS";
+  ctx.fillText("Debug", width - 202, 44);
+  ctx.font = "12px Trebuchet MS";
+  ctx.fillStyle = "#9bb3c5";
+  ctx.fillText(`FPS: ${fps.toFixed(1)}`, width - 202, 62);
+  ctx.fillText(`Server TPS: ${serverTickRate.toFixed(1)}`, width - 202, 78);
 };
