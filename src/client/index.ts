@@ -295,6 +295,7 @@ adminMenu.onCloseRequest(() => {
 vehicleMenu.onConfirm(({ vehicle, playerName }: VehicleSelectionConfirmation) => {
   vehicleSelectionConfirmed = true;
   vehicleMenu.setOpen(false);
+  audio.startGameMusic();
   updateInputEnabled();
   socket.emit("setPlayerName", playerName);
   void setLocalPlayerCarAsset(vehicle.assetPath);

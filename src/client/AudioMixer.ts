@@ -8,6 +8,22 @@ export class AudioMixer {
   private engineWhine: OscillatorNode | null = null;
   private engineWhineGain: GainNode | null = null;
 
+  private readonly gameMusicTrackNames = [
+    "/music/John Bartmann - A Crime In Progress.mp3",
+    "/music/John Bartmann - Cybernetic Boss Battle.mp3",
+    "/music/John Bartmann - Dorphed Up.mp3",
+    "/music/John Bartmann - Intrusion Countermeasure.mp3",
+    "/music/John Bartmann - Overdose.mp3",
+    "/music/John Bartmann - Surgical Scars.mp3",
+    "/music/John Bartmann - Synthetic Euphoria.mp3",
+    "/music/John Bartmann - Tokyo Shipment.mp3",
+    "/music/John Bartmann - Weird Lights.mp3"
+  ];
+  private shuffledGameMusic: string[] = [];
+  private currentGameMusic: HTMLAudioElement | null = null;
+  private currentGameMusicIndex = 0;
+  private readonly gameMusicVolume = 0.24;
+
   // Sound configuration - easily hand-tune these values
   public static readonly ENGINE_IDLE_FREQ = 20;      // Hz at rest
   public static readonly ENGINE_MAX_FREQ = 100;      // Hz at full speed
@@ -105,6 +121,72 @@ export class AudioMixer {
         this.engineWhineGain = null;
       }
     }, 200);
+  }
+
+  public startGameMusic(): void {
+    this.generateShuffledGameMusic();
+    this.playCurrentGameMusic();
+  }
+
+  public stopGameMusic(): void {
+    this.stopCurrentGameMusicElement();
+    this.shuffledGameMusic = [];
+    this.currentGameMusicIndex = 0;
+  }
+
+  private stopCurrentGameMusicElement(): void {
+    if (!this.currentGameMusic) {
+      return;
+    }
+
+    this.currentGameMusic.pause();
+    this.currentGameMusic.currentTime = 0;
+    this.currentGameMusic.removeEventListener("ended", this.onGameMusicEnded);
+    this.currentGameMusic = null;
+  }
+
+  private playCurrentGameMusic(): void {
+    if (this.shuffledGameMusic.length === 0) {
+      this.generateShuffledGameMusic();
+    }
+
+    const track = this.shuffledGameMusic[this.currentGameMusicIndex];
+    if (!track) {
+      return;
+    }
+
+    this.stopCurrentGameMusicElement();
+    const audio = new Audio(track);
+    audio.loop = false;
+    audio.preload = "auto";
+    audio.volume = this.gameMusicVolume;
+    audio.addEventListener("ended", this.onGameMusicEnded);
+    this.currentGameMusic = audio;
+
+    void audio.play().catch(() => undefined);
+  }
+
+  private onGameMusicEnded = (): void => {
+    if (this.shuffledGameMusic.length === 0) {
+      this.generateShuffledGameMusic();
+    }
+
+    if (this.currentGameMusicIndex + 1 >= this.shuffledGameMusic.length) {
+      this.generateShuffledGameMusic();
+    } else {
+      this.currentGameMusicIndex += 1;
+    }
+
+    this.playCurrentGameMusic();
+  };
+
+  private generateShuffledGameMusic(): void {
+    this.shuffledGameMusic = [...this.gameMusicTrackNames];
+    for (let i = this.shuffledGameMusic.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [this.shuffledGameMusic[i], this.shuffledGameMusic[j]] = [this.shuffledGameMusic[j], this.shuffledGameMusic[i]];
+    }
+    this.currentGameMusicIndex = 0;
   }
 
   public playEvents(events: WorldEvent[]): void {
