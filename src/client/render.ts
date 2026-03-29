@@ -370,7 +370,7 @@ export const renderGame = (
   const localPlayer = snapshot.players.find((player) => player.id === localPlayerId);
 
   if (audio && localPlayer) {
-    const speed = Math.abs(localPlayer.speed);
+    const speed = Math.abs(Math.hypot(localPlayer.vx, localPlayer.vy));
     const maxSpeed = 280;
     audio.updateEngineSound(speed, maxSpeed);
   }

@@ -106,7 +106,8 @@ const chooseNavigationTarget = (enemy: EnemyState, target: PlayerState, brain: E
   }
 
   const fallback = brain.waypoints[brain.waypoints.length - 1] ?? { x: target.x, y: target.y };
-  return getLookaheadWaypoint(brain.waypoints, enemy.speed, fallback);
+  const currentSpeed = Math.hypot(enemy.vx, enemy.vy);
+  return getLookaheadWaypoint(brain.waypoints, currentSpeed, fallback);
 };
 
 const applyObstacleAvoidance = (
@@ -156,14 +157,15 @@ const makeInput = (
   const aimAngle = angleOf({ x: aimTarget.x - enemy.x, y: aimTarget.y - enemy.y });
   const aimAngleDelta = wrapAngle(aimAngle - enemy.rotation);
   const targetDistance = distance(enemy, target);
+  const currentSpeed = Math.hypot(enemy.vx, enemy.vy);
 
-  let throttle = Math.abs(pathAngleDelta) > 2.4 && enemy.speed > 140 ? 0.2 : 1;
-  let brake = Math.abs(pathAngleDelta) > 1.9 && enemy.speed > 140;
+  let throttle = Math.abs(pathAngleDelta) > 2.4 && currentSpeed > 140 ? 0.2 : 1;
+  let handbrake = Math.abs(pathAngleDelta) > 1.9 && currentSpeed > 140;
   let shoot = false;
 
   if (enemy.kind === "rammer") {
     throttle = Math.abs(pathAngleDelta) > 2.45 ? 0.45 : 1;
-    brake = Math.abs(pathAngleDelta) > 1.4 && enemy.speed > 175;
+    handbrake = Math.abs(pathAngleDelta) > 1.4 && currentSpeed > 175;
   } else if (enemy.kind === "gunner") {
     throttle =
       Math.abs(pathAngleDelta) > 1.45
@@ -173,9 +175,9 @@ const makeInput = (
           : targetDistance > ENEMY_ARCHETYPES.gunner.preferredRange * 1.05
             ? 0.85
             : 0.15;
-    brake =
-      (Math.abs(pathAngleDelta) > 1.2 && enemy.speed > 115) ||
-      (targetDistance < ENEMY_ARCHETYPES.gunner.preferredRange * 0.5 && enemy.speed > 125);
+    handbrake =
+      (Math.abs(pathAngleDelta) > 1.2 && currentSpeed > 115) ||
+      (targetDistance < ENEMY_ARCHETYPES.gunner.preferredRange * 0.5 && currentSpeed > 125);
     shoot = targetDistance < ENEMY_ARCHETYPES.gunner.preferredRange && Math.abs(aimAngleDelta) < 0.22;
   } else if (enemy.kind === "drainer") {
     throttle =
@@ -184,13 +186,13 @@ const makeInput = (
         : targetDistance < ENEMY_ARCHETYPES.drainer.preferredRange
           ? 0.5
           : 1;
-    brake = Math.abs(pathAngleDelta) > 1.25 && enemy.speed > 150;
+    handbrake = Math.abs(pathAngleDelta) > 1.25 && currentSpeed > 150;
   }
 
   return {
     throttle,
     steer: pathAngleDelta > 0.08 ? 1 : pathAngleDelta < -0.08 ? -1 : 0,
-    brake,
+    handbrake,
     shoot,
     interact: false,
     seq: 0
@@ -206,7 +208,8 @@ const updateStuckState = (
   avoidance: ObstacleAvoidancePlan
 ): void => {
   const progress = distance(enemy, { x: brain.lastX, y: brain.lastY });
-  const tooSlow = Math.abs(enemy.speed) < STUCK_SPEED_THRESHOLD;
+  const currentSpeed = Math.hypot(enemy.vx, enemy.vy);
+  const tooSlow = Math.abs(currentSpeed) < STUCK_SPEED_THRESHOLD;
   let stuckDelta = progress < STUCK_PROGRESS_THRESHOLD && tooSlow ? dt : -dt * 0.7;
 
   if (collided) {
@@ -258,7 +261,6 @@ export const spawnEnemy = (
     rotation: randomBetween(-Math.PI, Math.PI),
     vx: 0,
     vy: 0,
-    speed: 0,
     driveVelocity: 0,
     health: maxHealth,
     maxHealth,
@@ -315,7 +317,7 @@ export const updateEnemies = (
       brain.repathTimer = 1.15;
     }
 
-    const arrivalRadius = 45 + Math.min(55, enemy.speed * 0.22);
+    const arrivalRadius = 45 + Math.min(55, Math.hypot(enemy.vx, enemy.vy) * 0.22);
     if (brain.waypoints.length > 0 && distance(enemy, brain.waypoints[0]) < arrivalRadius) {
       brain.waypoints.shift();
     }
@@ -331,7 +333,7 @@ export const updateEnemies = (
     const input = makeInput(enemy, target, avoidance.steeringTarget, aimTarget);
     if (brain.reverseTimer > 0) {
       input.throttle = -0.72;
-      input.brake = false;
+      input.handbrake = false;
       input.shoot = false;
       input.steer = avoidance.sideSign === 0 ? brain.reverseSteer : avoidance.sideSign;
       brain.repathTimer = Math.min(brain.repathTimer, FORCED_REPATH_TIME);

@@ -8,7 +8,6 @@ export interface VehicleTuning {
   maxForwardSpeed: number;
   maxReverseSpeed: number;
   friction: number;
-  handbrakeMultiplier: number;
   radius: number;
   collisionDamage: number;
 }
@@ -36,8 +35,7 @@ export const GAME_CONFIG = {
     turnSpeed: 2.9,
     maxForwardSpeed: 460,
     maxReverseSpeed: 160,
-    friction: 0.95,
-    handbrakeMultiplier: 0.72,
+    friction: 0.999,
     radius: 22,
     collisionDamage: 0.018,
     maxHealth: 120,
@@ -73,8 +71,12 @@ export const GAME_CONFIG = {
     brakeDragStrength: 0.015,
     brakeDragMin: 0.5,
     brakeDragMax: 0.96,
-    handbrakeFrameFactor: 0.35,
-    minimumTurningVelocity: 8
+    minimumTurningVelocity: 8,
+    // Drift-Parameter für realistische Fahrtdynamik
+    driftResponse: 0.2, // Wie schnell die Fahrtrichtung dem Lenkwinkel folgt (0-1)
+    lateralGrip: 0.8, // Seitenhaftung: Wie gut das Fahrzeug bei Kurven hält (0-1)
+    handbrakeLateralGripMultiplier: 2.0, // Multiplikator für lateralGrip bei aktivierter Handbremse (Drifteffekt wird stärker)
+    angularVelocityMax: 3.2 // Max Rotationsgeschwindigkeit in Radianen pro Sekunde
   },
   combat: {
     projectileRadius: 5,
@@ -105,7 +107,6 @@ export const ENEMY_ARCHETYPES: Record<EnemyKind, EnemyArchetype> = {
     maxForwardSpeed: 355,
     maxReverseSpeed: 90,
     friction: 0.955,
-    handbrakeMultiplier: 0.76,
     radius: 27,
     collisionDamage: 0.028,
     maxHealth: 88,
@@ -125,7 +126,6 @@ export const ENEMY_ARCHETYPES: Record<EnemyKind, EnemyArchetype> = {
     maxForwardSpeed: 325,
     maxReverseSpeed: 105,
     friction: 0.948,
-    handbrakeMultiplier: 0.8,
     radius: 23,
     collisionDamage: 0.02,
     maxHealth: 58,
@@ -145,7 +145,6 @@ export const ENEMY_ARCHETYPES: Record<EnemyKind, EnemyArchetype> = {
     maxForwardSpeed: 390,
     maxReverseSpeed: 125,
     friction: 0.952,
-    handbrakeMultiplier: 0.78,
     radius: 21,
     collisionDamage: 0.019,
     maxHealth: 52,

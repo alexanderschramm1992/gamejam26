@@ -29,7 +29,8 @@ export const updateVehicleResources = (
 
   if (consumesBattery) {
     const throttleDrain = Math.max(0, input.throttle) * GAME_CONFIG.battery.throttleDrain;
-    const speedDrain = (vehicle.speed / 300) * GAME_CONFIG.battery.speedDrain;
+    const currentSpeed = Math.hypot(vehicle.vx, vehicle.vy);
+    const speedDrain = (currentSpeed / 300) * GAME_CONFIG.battery.speedDrain;
     vehicle.battery = clamp(
       vehicle.battery - (GAME_CONFIG.battery.idleDrain + throttleDrain + speedDrain) * dt,
       0,
@@ -39,7 +40,7 @@ export const updateVehicleResources = (
     vehicle.battery = vehicle.maxBattery;
   }
 
-  if (surface.chargeStation && consumesBattery && (input.brake || vehicle.speed < 40)) {
+  if (surface.chargeStation && consumesBattery && (input.handbrake || Math.hypot(vehicle.vx, vehicle.vy) < 40)) {
     vehicle.charging = true;
     chargedThisFrame = true;
     vehicle.battery = clamp(
