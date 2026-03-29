@@ -76,9 +76,12 @@ const applyDynamics = (
   handbrake: boolean,
   dt: number
 ): void => {
+  // Verwende Handbremse-Lenkgeschwindigkeit wenn aktiviert, sonst normale Lenkgeschwindigkeit
+  const turnSpeed = handbrake ? GAME_CONFIG.player.handbrakeTurnSpeed : tuning.turnSpeed;
+  
   // Aktualisiere Fahrzeugdrehung basierend auf Lenkung
   vehicle.rotation = wrapAngle(
-    vehicle.rotation + steer * tuning.turnSpeed * dt * Math.sign(vehicle.driveVelocity)
+    vehicle.rotation + steer * turnSpeed * dt * Math.sign(vehicle.driveVelocity)
   );
 
   // Berechne Fahrtrichtung mit Drift-Effekt

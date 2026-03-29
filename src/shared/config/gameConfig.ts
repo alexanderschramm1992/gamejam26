@@ -33,7 +33,8 @@ export const GAME_CONFIG = {
     acceleration: 500,
     reverseAcceleration: 170,
     brakeStrength: 3.8,
-    turnSpeed: 3, // Lenkgeschwindigkeit - höher = schneller lenken/engere Kurven
+    turnSpeed: 2.5, // Lenkgeschwindigkeit - höher = schneller lenken/engere Kurven
+    handbrakeTurnSpeed: 3.5, // Lenkgeschwindigkeit mit aktivierter Handbremse - für bessere Kontrolle beim Driften
     maxForwardSpeed: 460,
     maxReverseSpeed: 160,
     friction: 0.9, // Wert 0-1: wie viel Geschwindigkeit pro Sekunde erhalten bleibt (linear decay)
