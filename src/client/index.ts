@@ -19,7 +19,8 @@ import {
   type VisualEntity,
   loadCarAsset,
   setLocalPlayerCarAsset,
-  loadBuildingAssets
+  loadBuildingAssets,
+  loadHudAssets
 } from "./render";
 
 const canvas = document.getElementById("game") as HTMLCanvasElement | null;
@@ -291,10 +292,11 @@ resize();
 updateOverlay();
 updateInputEnabled();
 vehicleMenu.setOpen(true);
-loadCarAsset().catch((error) => console.warn("Car asset loading failed, using fallback:", error));
-loadStreetTiles().catch((error) => console.warn("Street tiles loading failed, using fallback:", error));
-loadBuildingAssets().catch((error) => console.warn("Building asset loading failed, using fallback:", error));
-void setLocalPlayerCarAsset(vehicleMenu.getSelectedVehicle().assetPath).catch((error: any) =>
+loadCarAsset().catch((error: unknown) => console.warn("Car asset loading failed, using fallback:", error));
+loadStreetTiles().catch((error: unknown) => console.warn("Street tiles loading failed, using fallback:", error));
+loadBuildingAssets().catch((error: unknown) => console.warn("Building asset loading failed, using fallback:", error));
+loadHudAssets().catch((error: unknown) => console.warn("HUD asset loading failed, using fallback:", error));
+void setLocalPlayerCarAsset(vehicleMenu.getSelectedVehicle().assetPath).catch((error: unknown) =>
   console.warn("Vehicle selection asset loading failed, using fallback:", error)
 );
 requestAnimationFrame(loop);
