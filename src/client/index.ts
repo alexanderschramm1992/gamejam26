@@ -316,6 +316,15 @@ window.addEventListener("keydown", (event) => {
   event.preventDefault();
 });
 
+window.addEventListener("keydown", (event) => {
+  if (event.code !== "KeyH" || event.repeat || !vehicleSelectionConfirmed || gameOverOverlay.isOpen()) {
+    return;
+  }
+
+  audio.playHonk();
+  event.preventDefault();
+});
+
 window.addEventListener("blur", () => {
   setAdminMenuOpen(false);
 });
