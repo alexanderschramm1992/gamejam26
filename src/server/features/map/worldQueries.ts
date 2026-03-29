@@ -16,6 +16,9 @@ export interface SurfaceInfo {
   boostLane?: BoostLane;
 }
 
+const isOnBridge = (body: Pick<PhysicsBody, "x" | "y" | "radius">): boolean =>
+  CITY_MAP.bridges.some((bridge) => circleIntersectsRect(body, body.radius, bridge));
+
 export const getSurfaceInfo = (body: Pick<PhysicsBody, "x" | "y" | "radius">): SurfaceInfo => {
   const onRoad = CITY_MAP.roads.some((road) => circleIntersectsRect(body, body.radius, road));
   const chargeStation = CITY_MAP.chargeStations.find(
@@ -92,6 +95,55 @@ export const resolveWorldCollision = (body: PhysicsBody): boolean => {
       body.vx -= nx * (body.vx * nx + body.vy * ny) * 1.2;
       body.vy -= ny * (body.vx * nx + body.vy * ny) * 1.2;
       collided = true;
+    }
+  }
+
+  if (!isOnBridge(body)) {
+    for (const waterZone of CITY_MAP.water) {
+      if (!circleIntersectsRect(body, body.radius, waterZone)) {
+        continue;
+      }
+
+      const nearestX = clamp(body.x, waterZone.x, waterZone.x + waterZone.width);
+      const nearestY = clamp(body.y, waterZone.y, waterZone.y + waterZone.height);
+      let dx = body.x - nearestX;
+      let dy = body.y - nearestY;
+      let distanceToEdge = Math.hypot(dx, dy);
+
+      if (distanceToEdge === 0) {
+        const left = Math.abs(body.x - waterZone.x);
+        const right = Math.abs(body.x - (waterZone.x + waterZone.width));
+        const top = Math.abs(body.y - waterZone.y);
+        const bottom = Math.abs(body.y - (waterZone.y + waterZone.height));
+        const minimum = Math.min(left, right, top, bottom);
+
+        if (minimum === left) {
+          dx = -1;
+          dy = 0;
+        } else if (minimum === right) {
+          dx = 1;
+          dy = 0;
+        } else if (minimum === top) {
+          dx = 0;
+          dy = -1;
+        } else {
+          dx = 0;
+          dy = 1;
+        }
+
+        distanceToEdge = 1;
+      }
+
+      const overlap = body.radius - distanceToEdge;
+      if (overlap > 0) {
+        const nx = dx / distanceToEdge;
+        const ny = dy / distanceToEdge;
+        body.x += nx * overlap;
+        body.y += ny * overlap;
+        body.vx -= nx * (body.vx * nx + body.vy * ny) * 1.35;
+        body.vy -= ny * (body.vx * nx + body.vy * ny) * 1.35;
+        collided = true;
+      }
     }
   }
 
