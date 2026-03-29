@@ -130,7 +130,6 @@ export class GameServer {
       rotation: 0,
       vx: 0,
       vy: 0,
-      speed: 0,
       driveVelocity: 0,
       health: GAME_CONFIG.player.maxHealth,
       maxHealth: GAME_CONFIG.player.maxHealth,
@@ -224,7 +223,8 @@ export class GameServer {
       });
       const hitWall = resolveWorldCollision(player);
       if (hitWall && !this.isPlayerGhost(player)) {
-        player.health -= Math.max(2, player.speed * playerTuning.collisionDamage * 0.5);
+        const playerSpeed = Math.hypot(player.vx, player.vy);
+        player.health -= Math.max(2, playerSpeed * playerTuning.collisionDamage * 0.5);
       }
 
       if (input.shoot && player.weaponCooldown <= 0 && player.battery > GAME_CONFIG.battery.shootDrain) {
@@ -286,7 +286,9 @@ export class GameServer {
         b.vx -= nx * 80;
         b.vy -= ny * 80;
 
-        const impactDamage = Math.max(0, (a.speed + b.speed) * 0.018);
+        const aSpeed = Math.hypot(a.vx, a.vy);
+        const bSpeed = Math.hypot(b.vx, b.vy);
+        const impactDamage = Math.max(0, (aSpeed + bSpeed) * 0.018);
         if (a.type === "player" && b.type === "enemy") {
           this.applyEnemyContact(a, b, impactDamage);
         } else if (a.type === "enemy" && b.type === "player") {
@@ -443,7 +445,6 @@ export class GameServer {
     player.ghostTimer = 0;
     player.vx = 0;
     player.vy = 0;
-    player.speed = 0;
     player.driveVelocity = 0;
   }
 
@@ -455,7 +456,6 @@ export class GameServer {
     player.rotation = 0;
     player.vx = 0;
     player.vy = 0;
-    player.speed = 0;
     player.driveVelocity = 0;
     player.health = player.maxHealth;
     player.maxBattery = this.adminSettings.playerMaxBattery;

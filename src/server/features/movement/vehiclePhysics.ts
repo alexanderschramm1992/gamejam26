@@ -116,5 +116,4 @@ const applyMovement = (
   vehicle.vy = forwardY;
   vehicle.x += vehicle.vx * dt;
   vehicle.y += vehicle.vy * dt;
-  vehicle.speed = length({ x: vehicle.vx, y: vehicle.vy });
 };

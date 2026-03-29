@@ -40,23 +40,22 @@ export interface PlayerInput {
 }
 
 export interface VehicleState {
-  id: string;
-  x: number;
-  y: number;
-  rotation: number;
-  vx: number;
-  vy: number;
-  speed: number;
-  driveVelocity: number;
-  health: number;
-  maxHealth: number;
-  battery: number;
-  maxBattery: number;
-  radius: number;
-  weaponCooldown: number;
-  boostedUntil: number;
-  charging: boolean;
-  destroyed: boolean;
+  id: string; // Eindeutige Identifikation des Fahrzeugs
+  x: number; // X-Position auf der Weltkarte
+  y: number; // Y-Position auf der Weltkarte
+  rotation: number; // Rotationswinkel in Grad (Blickrichtung des Fahrzeugs)
+  vx: number; // Geschwindigkeit in X-Richtung (Pixel pro Frame)
+  vy: number; // Geschwindigkeit in Y-Richtung (Pixel pro Frame)
+  driveVelocity: number; // Vom Spieler/KI gewünschte Fahrtgeschwindigkeit
+  health: number; // Aktuelle Gesundheit des Fahrzeugs
+  maxHealth: number; // Maximale Gesundheit (100% Zustand)
+  battery: number; // Aktueller Batteriestand (Energie für Spezialbewegungen)
+  maxBattery: number; // Maximale Batteriekapazität
+  radius: number; // Kollisionsradius für physikalische Berechnungen
+  weaponCooldown: number; // Verbleibende Zeit (ms) bis die nächste Waffe abgefeuert werden kann
+  boostedUntil: number; // Zeitstempel bis zu dem Fahrzeug-Boost aktiv ist
+  charging: boolean; // Ob das Fahrzeug gerade an einer Ladestation lädt
+  destroyed: boolean; // Flag ob das Fahrzeug zerstört/vernichtet ist
 }
 
 export interface PlayerState extends VehicleState {
