@@ -26,7 +26,6 @@ export const stepVehicle = (
   vehicle: VehicleState,
   { dt, input, tuning, lowBattery, crippledBattery, offRoad, boosted }: VehicleStepOptions
 ): void => {
-  const frameFactor = dt * 60;
   const lowBatteryFactor = crippledBattery
     ? GAME_CONFIG.vehiclePhysics.crippledBatteryFactor
     : lowBattery
@@ -38,16 +37,13 @@ export const stepVehicle = (
   const maxReverse = tuning.maxReverseSpeed * roadFactor;
   const forwardInput = clamp(input.throttle, -1, 1);
 
-  // 1. Berechne Fahrtgeschwindigkeit (skalare "Triebkraft")
-  applyAcceleration(vehicle, forwardInput, tuning, lowBatteryFactor, maxForward, maxReverse, dt, frameFactor);
+  // 1. Berechne Fahrtgeschwindigkeit mit Beschleunigung und Reibung
+  applyAcceleration(vehicle, forwardInput, tuning, lowBatteryFactor, maxForward, maxReverse, dt);
 
-  // 2. Bremsen wirken auf den Geschwindigkeitsvektor
-  applyBrake(vehicle, tuning, frameFactor);
-
-  // 3. Lenkung und Drift-Dynamik
+  // 2. Lenkung und Drift-Dynamik - setzt vx/vy basierend auf driveVelocity
   applyDynamics(vehicle, input.steer, tuning, maxForward, dt);
 
-  // 4. Position basierend auf echtem Bewegungsvektor aktualisieren
+  // 3. Position aktualisieren
   applyMovement(vehicle, offRoad, dt);
 };
 
@@ -58,36 +54,35 @@ const applyAcceleration = (
   lowBatteryFactor: number,
   maxForward: number,
   maxReverse: number,
-  dt: number,
-  frameFactor: number
+  dt: number
 ): void => {
-  // driveVelocity ist hier ein interner Zustand für die Triebkraft (nicht direkt sichtbar)
+  // Beschleunige basierend auf Input
   if (forwardInput > 0) {
+    // Vorwärts-Beschleunigung
     vehicle.driveVelocity += tuning.acceleration * forwardInput * lowBatteryFactor * dt;
   } else if (forwardInput < 0) {
-    vehicle.driveVelocity -= tuning.reverseAcceleration * Math.abs(forwardInput) * dt;
+    // Rückwärts-Beschleunigung (oder Bremsen wenn wir gerade vorwärts fahren)
+    const targetDirection = -Math.abs(forwardInput); // Zielrichtung: rückwärts
+    
+    if (vehicle.driveVelocity > 0) {
+      // Wir fahren vorwärts, aber der Spieler will rückwärts fahren -> bremsen
+      // Nutze brakeStrength für schnelleres Abbremsen
+      const brakeFactor = 1 - tuning.brakeStrength * GAME_CONFIG.vehiclePhysics.brakeDragStrength * dt * 60;
+      vehicle.driveVelocity *= Math.max(brakeFactor, 0.3); // Min 0.3 um nicht zu hart zu bremsen
+    } else {
+      // Bereits rückwärts oder stillstehen -> beschleunige rückwärts
+      vehicle.driveVelocity -= tuning.reverseAcceleration * Math.abs(forwardInput) * dt;
+    }
   } else {
-    vehicle.driveVelocity *= Math.pow(tuning.friction, frameFactor);
+    // Kein Input -> natürliche Reibung
+    // friction ist der Anteil der Geschwindigkeit, der pro Sekunde erhalten bleibt
+    // z.B. friction=0.95 bedeutet: 5% pro Sekunde verloren
+    const decayFactor = Math.pow(tuning.friction, dt);
+    vehicle.driveVelocity *= decayFactor;
   }
 
+  // Begrenzte auf Max-Geschwindigkeiten
   vehicle.driveVelocity = clamp(vehicle.driveVelocity, -maxReverse, maxForward);
-};
-
-const applyBrake = (
-  vehicle: VehicleState,
-  tuning: VehicleTuning,
-  frameFactor: number
-): void => {
-
-  const brakeDrag = clamp(
-    1 - tuning.brakeStrength * GAME_CONFIG.vehiclePhysics.brakeDragStrength * frameFactor,
-    GAME_CONFIG.vehiclePhysics.brakeDragMin,
-    GAME_CONFIG.vehiclePhysics.brakeDragMax
-  );
-  
-  // Bremsen wirken auf den echten Geschwindigkeitsvektor
-  vehicle.vx *= brakeDrag;
-  vehicle.vy *= brakeDrag;
 };
 
 const applyDynamics = (
@@ -102,25 +97,36 @@ const applyDynamics = (
   
   // Unter minimaler Geschwindigkeit kann nicht gelenkt werden
   if (driveSpeed < GAME_CONFIG.vehiclePhysics.minimumTurningVelocity) {
-    // Wenn wir sehr langsam sind, richte die Fahrtrichtung sofort aus
-    if (driveSpeed > 0) {
+    // Bei niedriger Geschwindigkeit: Fahrtrichtung folgt rotation sofort
+    // Aber behalte das Vorzeichen von driveVelocity (Vorwärts/Rückwärts)
+    if (Math.abs(vehicle.driveVelocity) > 0.5) {
       const forward = fromAngle(vehicle.rotation);
       vehicle.vx = forward.x * vehicle.driveVelocity;
       vehicle.vy = forward.y * vehicle.driveVelocity;
+    } else {
+      // Nur wenn wirklich stillstehen
+      vehicle.vx = 0;
+      vehicle.vy = 0;
     }
     return;
   }
 
-  // Berechne die gewünschte Fahrtrichtung basierend auf Lenkung
-  const effectiveTurnSpeed = tuning.turnSpeed;
+  // Berechne geschwindigkeitsabhängigen Lenkradius
+  // Bei niedriger Geschwindigkeit: volle Lenkwirkung
+  // Bei hoher Geschwindigkeit: reduzierte Lenkwirkung (breitere Kurven)
+  const maxSpeed = Math.max(80, maxForward);
+  const speedRatio = driveSpeed / maxSpeed; // 0 = langsam, 1 = maxSpeed
+  
+  // Lenkradius-Faktor: bei 0 Geschwindigkeit = 1.0 (volle Lenkung), bei maxSpeed = turnSpeedScaling
+  // Je höher turnSpeedScaling, desto mehr wird das Lenken bei hoher Geschwindigkeit reduziert
+  const turnRadiusFactor = 1 - (speedRatio * GAME_CONFIG.physics.turnSpeedScaling);
 
-  // Geschwindigkeitsabhängiger Wendekreis
-  const speedFactor = clamp(driveSpeed / Math.max(80, maxForward), 0, 1);
-  const gripFactor = 1 - speedFactor * GAME_CONFIG.physics.turnSpeedScaling;
+  // Berechne die effektive Lenkgeschwindigkeit
+  const effectiveTurnSpeed = tuning.turnSpeed * turnRadiusFactor;
   
   // Rotiere die Fahrzeugausrichtung basierend auf Lenkung
   vehicle.rotation = wrapAngle(
-    vehicle.rotation + steer * effectiveTurnSpeed * gripFactor * dt * Math.sign(vehicle.driveVelocity)
+    vehicle.rotation + steer * effectiveTurnSpeed * dt * Math.sign(vehicle.driveVelocity)
   );
 
   // Drift-Effekt: Der Geschwindigkeitsvektor folgt der Rotation mit Verzögerung

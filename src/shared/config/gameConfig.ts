@@ -7,7 +7,7 @@ export interface VehicleTuning {
   turnSpeed: number;
   maxForwardSpeed: number;
   maxReverseSpeed: number;
-  friction: number;
+  friction: number; // Wert 0-1: wie viel Geschwindigkeit pro Sekunde erhalten bleibt (linear decay)
   radius: number;
   collisionDamage: number;
 }
@@ -35,7 +35,7 @@ export const GAME_CONFIG = {
     turnSpeed: 3.5, // Lenkgeschwindigkeit - höher = schneller lenken/engere Kurven
     maxForwardSpeed: 460,
     maxReverseSpeed: 160,
-    friction: 0.9999,
+    friction: 0.93,
     radius: 22,
     collisionDamage: 0.018,
     maxHealth: 120,
@@ -110,7 +110,7 @@ export const ENEMY_ARCHETYPES: Record<EnemyKind, EnemyArchetype> = {
     turnSpeed: 2.2,
     maxForwardSpeed: 355,
     maxReverseSpeed: 90,
-    friction: 0.955,
+    friction: 0.95,
     radius: 27,
     collisionDamage: 0.028,
     maxHealth: 88,
@@ -129,7 +129,7 @@ export const ENEMY_ARCHETYPES: Record<EnemyKind, EnemyArchetype> = {
     turnSpeed: 2.45,
     maxForwardSpeed: 325,
     maxReverseSpeed: 105,
-    friction: 0.948,
+    friction: 0.94,
     radius: 23,
     collisionDamage: 0.02,
     maxHealth: 58,
@@ -148,7 +148,7 @@ export const ENEMY_ARCHETYPES: Record<EnemyKind, EnemyArchetype> = {
     turnSpeed: 2.85,
     maxForwardSpeed: 390,
     maxReverseSpeed: 125,
-    friction: 0.952,
+    friction: 0.944,
     radius: 21,
     collisionDamage: 0.019,
     maxHealth: 52,
