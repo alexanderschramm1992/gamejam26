@@ -38,7 +38,7 @@ import { updateVehicleResources } from "../features/resources/resourceSystem";
 const neutralInput: PlayerInput = {
   throttle: 0,
   steer: 0,
-  brake: false,
+  handbrake: false,
   shoot: false,
   interact: false,
   seq: 0

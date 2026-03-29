@@ -35,7 +35,7 @@ export const GAME_CONFIG = {
     turnSpeed: 2.9,
     maxForwardSpeed: 460,
     maxReverseSpeed: 160,
-    friction: 0.95,
+    friction: 0.999,
     radius: 22,
     collisionDamage: 0.018,
     maxHealth: 120,
@@ -75,6 +75,7 @@ export const GAME_CONFIG = {
     // Drift-Parameter für realistische Fahrtdynamik
     driftResponse: 0.2, // Wie schnell die Fahrtrichtung dem Lenkwinkel folgt (0-1)
     lateralGrip: 0.8, // Seitenhaftung: Wie gut das Fahrzeug bei Kurven hält (0-1)
+    handbrakeLateralGripMultiplier: 2.0, // Multiplikator für lateralGrip bei aktivierter Handbremse (Drifteffekt wird stärker)
     angularVelocityMax: 3.2 // Max Rotationsgeschwindigkeit in Radianen pro Sekunde
   },
   combat: {

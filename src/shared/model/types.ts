@@ -33,7 +33,7 @@ export interface NavigationNode {
 export interface PlayerInput {
   throttle: number;
   steer: number;
-  brake: boolean;
+  handbrake: boolean;
   shoot: boolean;
   interact: boolean;
   seq: number;
