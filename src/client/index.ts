@@ -56,6 +56,8 @@ let inputSequence = 0;
 let lastRenderedEvent = 0;
 let vehicleSelectionConfirmed = false;
 let wasLocalPlayerDestroyed = false;
+let lastStatusText = "";
+let lastFeedSignature = "";
 const drainBeams: DrainBeamVisual[] = [];
 const tireTrackManager = new TireTrackManager();
 
@@ -185,9 +187,13 @@ const updateOverlay = (): void => {
   const playerText = player
     ? `${formatPlayerName(player.name, player.id)} | hull ${player.health.toFixed(0)} | battery ${player.battery.toFixed(0)}`
     : "Spectating sync";
-  statusEl.textContent = `${missionText}
+  const nextStatusText = `${missionText}
 ${playerText}
 score ${snapshot.team.score} | deliveries ${snapshot.team.deliveries} | danger ${snapshot.team.danger}`;
+  if (nextStatusText !== lastStatusText) {
+    statusEl.textContent = nextStatusText;
+    lastStatusText = nextStatusText;
+  }
 
   const freshEvents = snapshot.recentEvents.filter((event) => event.id > lastRenderedEvent);
   if (freshEvents.length > 0) {
@@ -196,15 +202,19 @@ score ${snapshot.team.score} | deliveries ${snapshot.team.deliveries} | danger $
     lastRenderedEvent = freshEvents[freshEvents.length - 1].id;
   }
 
-  feedEl.innerHTML = "";
-  snapshot.recentEvents
-    .slice()
-    .reverse()
-    .forEach((event) => {
-      const item = document.createElement("li");
-      item.textContent = event.text;
-      feedEl.appendChild(item);
-    });
+  const feedSignature = snapshot.recentEvents.map((event) => event.id).join(",");
+  if (feedSignature !== lastFeedSignature) {
+    feedEl.innerHTML = "";
+    snapshot.recentEvents
+      .slice()
+      .reverse()
+      .forEach((event) => {
+        const item = document.createElement("li");
+        item.textContent = event.text;
+        feedEl.appendChild(item);
+      });
+    lastFeedSignature = feedSignature;
+  }
 };
 
 socket.on("hello", ({ playerId }) => {
@@ -219,9 +229,6 @@ socket.on("adminState", (state) => {
 
 socket.on("snapshot", (nextSnapshot) => {
   snapshot = nextSnapshot;
-  syncVisualMap(visuals.players, snapshot.players);
-  syncVisualMap(visuals.enemies, snapshot.enemies);
-  syncVisualMap(visuals.projectiles, snapshot.projectiles);
   updateOverlay();
   syncGameOverState(performance.now());
 });
@@ -275,12 +282,9 @@ const loop = (): void => {
     syncVisualMap(visuals.players, snapshot.players);
     syncVisualMap(visuals.enemies, snapshot.enemies);
     syncVisualMap(visuals.projectiles, snapshot.projectiles);
-    
-    // Update tire tracks based on all vehicles
-    const allVehicles = [...snapshot.players, ...snapshot.enemies];
-    tireTrackManager.updateTracks(allVehicles, nowMs);
+    tireTrackManager.updateTracks(snapshot.players, nowMs);
     const tireTracks = tireTrackManager.getMarks();
-    
+
     renderGame(context, canvas, snapshot, localPlayerId, adminPlayerId, visuals, audio, drainBeams, tireTracks, nowMs, aimAngle);
   } else {
     const viewport = getViewportSize();

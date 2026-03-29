@@ -273,6 +273,22 @@ export const spawnEnemy = (
   };
 };
 
+const findClosestPlayer = (enemy: EnemyState, players: PlayerState[]): PlayerState => {
+  let closestPlayer = players[0]!;
+  let closestDistance = distance(enemy, closestPlayer);
+
+  for (let index = 1; index < players.length; index += 1) {
+    const candidate = players[index]!;
+    const candidateDistance = distance(enemy, candidate);
+    if (candidateDistance < closestDistance) {
+      closestPlayer = candidate;
+      closestDistance = candidateDistance;
+    }
+  }
+
+  return closestPlayer;
+};
+
 export const updateEnemies = (
   enemies: EnemyState[],
   players: PlayerState[],
@@ -284,6 +300,13 @@ export const updateEnemies = (
 ): ProjectileState[] => {
   const projectiles: ProjectileState[] = [];
   const effectiveFireRate = Math.max(0.25, settings.enemyFireRateMultiplier);
+  const livePlayers = players.filter((player) => !player.destroyed);
+  if (livePlayers.length === 0) {
+    return projectiles;
+  }
+
+  const nonGhostPlayers = livePlayers.filter((player) => player.ghostTimer <= 0);
+  const targetCandidates = nonGhostPlayers.length > 0 ? nonGhostPlayers : livePlayers;
 
   for (const enemy of enemies) {
     if (enemy.destroyed) {
@@ -291,16 +314,7 @@ export const updateEnemies = (
     }
 
     enemy.weaponCooldown = Math.max(0, enemy.weaponCooldown - dt);
-    const livePlayers = players.filter((player) => !player.destroyed);
-    if (livePlayers.length === 0) {
-      continue;
-    }
-
-    const targetPool = livePlayers.filter((player) => player.ghostTimer <= 0);
-    const targetCandidates = targetPool.length > 0 ? targetPool : livePlayers;
-    const target = targetCandidates.reduce((best, player) =>
-      distance(enemy, player) < distance(enemy, best) ? player : best
-    );
+    const target = findClosestPlayer(enemy, targetCandidates);
     enemy.targetPlayerId = target.id;
 
     const brain = brains.get(enemy.id) ?? createEnemyBrain(enemy);

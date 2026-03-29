@@ -3,7 +3,7 @@ import { CITY_MAP, TILE_SIZE, findPoiById } from "../shared/map/cityMap";
 import type { EnemyState, GameSnapshot, PlayerState, ProjectileState, RectZone } from "../shared/model/types";
 import { clamp } from "../shared/utils/math";
 import type { AudioMixer } from "./AudioMixer";
-import { drawTiledRoads } from "./StreetTileRenderer";
+import { drawTiledRoads, type ViewportBounds } from "./StreetTileRenderer";
 import { drawTireTrack, type TireTrackMark } from "./TireTrackRenderer";
 
 export interface VisualEntity {
@@ -74,6 +74,7 @@ let pavementTileImage: HTMLImageElement | null = null;
 let targetPointerImage: HTMLImageElement | null = null;
 let weaponImage: HTMLImageElement | null = null;
 let bulletImage: HTMLImageElement | null = null;
+let pavementPatterns = new WeakMap<CanvasRenderingContext2D, CanvasPattern | null>();
 
 export const loadHudAssets = async (): Promise<void> => {
   [targetPointerImage, weaponImage, bulletImage] = await Promise.all([
@@ -90,6 +91,7 @@ export const loadBuildingAssets = async (): Promise<void> => {
   ]);
   buildingImages = new Map(images);
   pavementTileImage = pavementTile;
+  pavementPatterns = new WeakMap();
 };
 
 const getBuildingImage = (building: RectZone): HTMLImageElement | null => {
@@ -102,10 +104,9 @@ const getBuildingImage = (building: RectZone): HTMLImageElement | null => {
 
 const drawBuildingImage = (
   ctx: CanvasRenderingContext2D,
-  building: RectZone,
+  drawRect: RectZone,
   buildingImage: HTMLImageElement
 ): void => {
-  const drawRect = getBuildingDrawRect(building);
   ctx.drawImage(buildingImage, drawRect.x, drawRect.y, drawRect.width, drawRect.height);
 };
 
@@ -140,6 +141,8 @@ const getBuildingLots = (): RectZone[] => {
   return Array.from(lots.values());
 };
 
+const buildingLots = getBuildingLots();
+
 const drawPavedLot = (
   ctx: CanvasRenderingContext2D,
   lot: RectZone,
@@ -155,6 +158,35 @@ const drawPavedLot = (
   ctx.strokeRect(lot.x + 8, lot.y + 8, lot.width - 16, lot.height - 16);
   ctx.restore();
 };
+
+const getPavementPattern = (ctx: CanvasRenderingContext2D): CanvasPattern | null => {
+  const cachedPattern = pavementPatterns.get(ctx);
+  if (cachedPattern !== undefined) {
+    return cachedPattern;
+  }
+
+  const nextPattern = pavementTileImage ? ctx.createPattern(pavementTileImage, "repeat") : null;
+  pavementPatterns.set(ctx, nextPattern);
+  return nextPattern;
+};
+
+const rectIntersectsBounds = (
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  bounds: ViewportBounds
+): boolean => x < bounds.right && x + width > bounds.left && y < bounds.bottom && y + height > bounds.top;
+
+const zoneIntersectsBounds = (zone: RectZone, bounds: ViewportBounds): boolean =>
+  rectIntersectsBounds(zone.x, zone.y, zone.width, zone.height, bounds);
+
+const pointIntersectsBounds = (
+  x: number,
+  y: number,
+  radius: number,
+  bounds: ViewportBounds
+): boolean => rectIntersectsBounds(x - radius, y - radius, radius * 2, radius * 2, bounds);
 
 const CAMERA_ZOOM_IDLE = 1.08;
 const CAMERA_ZOOM_FAST = 0.96;
@@ -328,12 +360,16 @@ const drawDrainBeam = (
   ctx.restore();
 };
 
-const drawWorldGeometry = (ctx: CanvasRenderingContext2D): void => {
-  const pavementPattern = pavementTileImage ? ctx.createPattern(pavementTileImage, "repeat") : null;
+const drawWorldGeometry = (ctx: CanvasRenderingContext2D, bounds: ViewportBounds): void => {
+  const pavementPattern = getPavementPattern(ctx);
   ctx.fillStyle = pavementPattern ?? "#132229";
-  ctx.fillRect(0, 0, CITY_MAP.width, CITY_MAP.height);
+  ctx.fillRect(bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top);
 
   for (const park of CITY_MAP.parks) {
+    if (!zoneIntersectsBounds(park, bounds)) {
+      continue;
+    }
+
     ctx.save();
     ctx.fillStyle = "#2a4a2d";
     ctx.fillRect(park.x, park.y, park.width, park.height);
@@ -356,6 +392,10 @@ const drawWorldGeometry = (ctx: CanvasRenderingContext2D): void => {
   }
 
   for (const waterZone of CITY_MAP.water) {
+    if (!zoneIntersectsBounds(waterZone, bounds)) {
+      continue;
+    }
+
     ctx.save();
     ctx.fillStyle = "#0f2e3d";
     ctx.fillRect(waterZone.x, waterZone.y, waterZone.width, waterZone.height);
@@ -378,13 +418,21 @@ const drawWorldGeometry = (ctx: CanvasRenderingContext2D): void => {
     ctx.restore();
   }
 
-  drawTiledRoads(ctx);
+  drawTiledRoads(ctx, bounds);
 
-  for (const lot of getBuildingLots()) {
+  for (const lot of buildingLots) {
+    if (!zoneIntersectsBounds(lot, bounds)) {
+      continue;
+    }
+
     drawPavedLot(ctx, lot, pavementPattern);
   }
 
   for (const bridge of CITY_MAP.bridges) {
+    if (!zoneIntersectsBounds(bridge, bounds)) {
+      continue;
+    }
+
     ctx.save();
     ctx.strokeStyle = "rgba(232, 238, 244, 0.32)";
     ctx.lineWidth = 5;
@@ -411,12 +459,17 @@ const drawWorldGeometry = (ctx: CanvasRenderingContext2D): void => {
   }
 
   for (const building of CITY_MAP.buildings) {
+    const drawRect = getBuildingDrawRect(building);
+    if (!zoneIntersectsBounds(drawRect, bounds)) {
+      continue;
+    }
+
     const buildingImage = getBuildingImage(building);
     const collisionRect = getBuildingCollisionRect(building);
     ctx.shadowBlur = 12;
     ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
     if (buildingImage) {
-      drawBuildingImage(ctx, building, buildingImage);
+      drawBuildingImage(ctx, drawRect, buildingImage);
     } else {
       ctx.fillStyle = "#0a131b";
       ctx.fillRect(building.x, building.y, building.width, building.height);
@@ -459,15 +512,25 @@ export const renderGame = (
   const visibleWorldHeight = height / currentCameraZoom;
   const cameraX = clamp(localPlayer?.x ?? CITY_MAP.width / 2, visibleWorldWidth / 2, CITY_MAP.width - visibleWorldWidth / 2);
   const cameraY = clamp(localPlayer?.y ?? CITY_MAP.height / 2, visibleWorldHeight / 2, CITY_MAP.height - visibleWorldHeight / 2);
+  const viewBounds: ViewportBounds = {
+    left: cameraX - visibleWorldWidth / 2,
+    top: cameraY - visibleWorldHeight / 2,
+    right: cameraX + visibleWorldWidth / 2,
+    bottom: cameraY + visibleWorldHeight / 2
+  };
 
   ctx.save();
   ctx.translate(width / 2, height / 2);
   ctx.scale(currentCameraZoom, currentCameraZoom);
   ctx.translate(-cameraX, -cameraY);
-  drawWorldGeometry(ctx);
+  drawWorldGeometry(ctx, viewBounds);
 
   // Draw boost lanes
   for (const lane of CITY_MAP.boostLanes) {
+    if (!zoneIntersectsBounds(lane, viewBounds)) {
+      continue;
+    }
+
     ctx.save();
     ctx.strokeStyle = "rgba(193, 255, 114, 0.7)";
     ctx.fillStyle = "rgba(193, 255, 114, 0.08)";
@@ -493,12 +556,24 @@ export const renderGame = (
     ctx.restore();
   };
 
-  CITY_MAP.chargeStations.forEach((station) => glowPoi(station.x, station.y, station.radius * 0.45, "rgba(88, 240, 255, 0.15)", "#58f0ff"));
-  CITY_MAP.dispatchPoints.forEach((dispatch) => glowPoi(dispatch.x, dispatch.y, dispatch.radius * 0.48, "rgba(255, 179, 71, 0.18)", "#ffb347"));
-  CITY_MAP.deliveryPoints.forEach((point) => glowPoi(point.x, point.y, point.radius * 0.38, "rgba(255, 122, 209, 0.14)", "#ff7ad1"));
+  CITY_MAP.chargeStations.forEach((station) => {
+    if (pointIntersectsBounds(station.x, station.y, station.radius, viewBounds)) {
+      glowPoi(station.x, station.y, station.radius * 0.45, "rgba(88, 240, 255, 0.15)", "#58f0ff");
+    }
+  });
+  CITY_MAP.dispatchPoints.forEach((dispatch) => {
+    if (pointIntersectsBounds(dispatch.x, dispatch.y, dispatch.radius, viewBounds)) {
+      glowPoi(dispatch.x, dispatch.y, dispatch.radius * 0.48, "rgba(255, 179, 71, 0.18)", "#ffb347");
+    }
+  });
+  CITY_MAP.deliveryPoints.forEach((point) => {
+    if (pointIntersectsBounds(point.x, point.y, point.radius, viewBounds)) {
+      glowPoi(point.x, point.y, point.radius * 0.38, "rgba(255, 122, 209, 0.14)", "#ff7ad1");
+    }
+  });
 
   const destination = findPoiById(snapshot.mission.destinationId);
-  if (destination) {
+  if (destination && pointIntersectsBounds(destination.x, destination.y, destination.radius, viewBounds)) {
     ctx.save();
     ctx.strokeStyle = snapshot.mission.status === "active" ? "#ffcf69" : "#ff7ad1";
     ctx.lineWidth = 3;
@@ -512,19 +587,21 @@ export const renderGame = (
 
   for (const projectile of snapshot.projectiles) {
     const visual = visuals.projectiles.get(projectile.id);
-    if (visual) {
+    if (visual && pointIntersectsBounds(visual.x, visual.y, projectile.radius + 12, viewBounds)) {
       drawProjectile(ctx, visual, projectile);
     }
   }
 
   // Draw tire tracks before vehicles
   for (const track of tireTracks) {
-    drawTireTrack(ctx, track, nowMs);
+    if (pointIntersectsBounds(track.x, track.y, 28, viewBounds)) {
+      drawTireTrack(ctx, track, nowMs);
+    }
   }
 
   for (const enemy of snapshot.enemies) {
     const visual = visuals.enemies.get(enemy.id);
-    if (visual) {
+    if (visual && pointIntersectsBounds(visual.x, visual.y, enemy.radius + 56, viewBounds)) {
       drawVehicle(
         ctx,
         visual,
@@ -538,7 +615,7 @@ export const renderGame = (
 
   for (const player of snapshot.players) {
     const visual = visuals.players.get(player.id);
-    if (visual) {
+    if (visual && pointIntersectsBounds(visual.x, visual.y, player.radius + 56, viewBounds)) {
       drawVehicle(
         ctx,
         visual,
