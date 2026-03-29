@@ -6,8 +6,16 @@ const positive = (condition: boolean): number => (condition ? 1 : 0);
 
 export class InputController {
   private enabled = true;
+  private pointerX = 0;
+  private pointerY = 0;
+  private pointerDown = false;
+  private readonly canvas: HTMLCanvasElement;
 
-  constructor() {
+  constructor(canvas: HTMLCanvasElement) {
+    this.canvas = canvas;
+    this.pointerX = canvas.clientWidth / 2;
+    this.pointerY = canvas.clientHeight / 2;
+
     window.addEventListener("keydown", (event) => {
       if (!this.enabled) {
         return;
@@ -19,6 +27,28 @@ export class InputController {
     });
     window.addEventListener("blur", () => {
       pressedKeys.clear();
+      this.pointerDown = false;
+    });
+
+    canvas.addEventListener("pointermove", (event) => {
+      this.pointerX = event.offsetX;
+      this.pointerY = event.offsetY;
+    });
+    canvas.addEventListener("pointerdown", (event) => {
+      if (!this.enabled || event.button !== 0) {
+        return;
+      }
+      this.pointerDown = true;
+      event.preventDefault();
+    });
+    canvas.addEventListener("pointerup", (event) => {
+      if (event.button !== 0) {
+        return;
+      }
+      this.pointerDown = false;
+    });
+    canvas.addEventListener("pointercancel", () => {
+      this.pointerDown = false;
     });
   }
 
@@ -26,16 +56,30 @@ export class InputController {
     this.enabled = enabled;
     if (!enabled) {
       pressedKeys.clear();
+      this.pointerDown = false;
     }
   }
 
-  public snapshot(seq: number): PlayerInput {
+  public getAimAngle(localPlayer: { x: number; y: number } | null, cameraX: number, cameraY: number): number {
+    if (!localPlayer) {
+      return 0;
+    }
+
+    const canvasWidth = this.canvas.clientWidth || this.canvas.width;
+    const canvasHeight = this.canvas.clientHeight || this.canvas.height;
+    const worldX = this.pointerX - canvasWidth / 2 + cameraX;
+    const worldY = this.pointerY - canvasHeight / 2 + cameraY;
+    return Math.atan2(worldY - localPlayer.y, worldX - localPlayer.x);
+  }
+
+  public snapshot(seq: number, aimAngle = 0): PlayerInput {
     if (!this.enabled) {
       return {
         throttle: 0,
         steer: 0,
         shoot: false,
         interact: false,
+        aimAngle,
         seq
       };
     }
@@ -50,8 +94,9 @@ export class InputController {
     return {
       throttle,
       steer,
-      shoot: pressedKeys.has("Space"),
+      shoot: pressedKeys.has("Space") || this.pointerDown,
       interact: pressedKeys.has("KeyE"),
+      aimAngle,
       seq
     };
   }

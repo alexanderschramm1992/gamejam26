@@ -192,6 +192,7 @@ const makeInput = (
     steer: pathAngleDelta > 0.08 ? 1 : pathAngleDelta < -0.08 ? -1 : 0,
     shoot,
     interact: false,
+    aimAngle,
     seq: 0
   };
 };

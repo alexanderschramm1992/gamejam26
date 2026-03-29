@@ -1,7 +1,8 @@
 import { io, type Socket } from "socket.io-client";
 import type { ClientEvents, ServerEvents } from "../shared/network/protocol";
 import type { GameSnapshot, PlayerState, WorldEvent } from "../shared/model/types";
-import { lerp, wrapAngle } from "../shared/utils/math";
+import { lerp, wrapAngle, clamp } from "../shared/utils/math";
+import { CITY_MAP } from "../shared/map/cityMap";
 import { AdminMenu } from "./AdminMenu";
 import { AudioMixer } from "./AudioMixer";
 import { InputController } from "./InputController";
@@ -37,7 +38,7 @@ if (!context) {
 }
 
 const socket: Socket<ServerEvents, ClientEvents> = io();
-const input = new InputController();
+const input = new InputController(canvas);
 const audio = new AudioMixer();
 const adminMenu = new AdminMenu();
 const vehicleMenu = new VehicleSelectionMenu();
@@ -260,8 +261,13 @@ window.addEventListener("blur", () => {
 
 const loop = (): void => {
   const nowMs = performance.now();
+  const localPlayer = findLocalPlayer(snapshot);
+  const viewport = getViewportSize();
+  const cameraX = clamp(localPlayer?.x ?? CITY_MAP.width / 2, viewport.width / 2, CITY_MAP.width - viewport.width / 2);
+  const cameraY = clamp(localPlayer?.y ?? CITY_MAP.height / 2, viewport.height / 2, CITY_MAP.height - viewport.height / 2);
+  const aimAngle = input.getAimAngle(localPlayer, cameraX, cameraY);
   inputSequence += 1;
-  socket.emit("input", input.snapshot(inputSequence));
+  socket.emit("input", input.snapshot(inputSequence, aimAngle));
   pruneExpiredDrainBeams(nowMs);
   syncGameOverState(nowMs);
 
@@ -275,7 +281,7 @@ const loop = (): void => {
     tireTrackManager.updateTracks(allVehicles, nowMs);
     const tireTracks = tireTrackManager.getMarks();
     
-    renderGame(context, canvas, snapshot, localPlayerId, adminPlayerId, visuals, audio, drainBeams, tireTracks, nowMs);
+    renderGame(context, canvas, snapshot, localPlayerId, adminPlayerId, visuals, audio, drainBeams, tireTracks, nowMs, aimAngle);
   } else {
     const viewport = getViewportSize();
     context.clearRect(0, 0, viewport.width, viewport.height);
