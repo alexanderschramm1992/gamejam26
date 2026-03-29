@@ -214,9 +214,9 @@ const dispatchPoint: CirclePoi = sushiShopBuilding
       label: "Sushi Shop",
       x: sushiShopBuilding.x + sushiShopBuilding.width - Math.min(30, sushiShopBuilding.width * 0.35),
       y: sushiShopBuilding.y + sushiShopBuilding.height * 0.72,
-      radius: 96
+      radius: 288
     }
-  : circlePoi("dispatch-central", "Sushi Shop", 15, 13, 96);
+  : circlePoi("dispatch-central", "Sushi Shop", 15, 13, 288);
 
 export const CITY_MAP: WorldMapData = {
   width: TILE_SIZE * MAP_WIDTH_TILES,
