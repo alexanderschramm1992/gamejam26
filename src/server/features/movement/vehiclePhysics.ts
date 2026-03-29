@@ -93,14 +93,6 @@ const applyBrake = (
   // Bremsen wirken auf den echten Geschwindigkeitsvektor
   vehicle.vx *= brakeDrag;
   vehicle.vy *= brakeDrag;
-  
-  // Handbrake verstärkt die Bremswirkung
-  const handbrakeMultiplier = Math.pow(
-    tuning.handbrakeMultiplier,
-    frameFactor * GAME_CONFIG.vehiclePhysics.handbrakeFrameFactor
-  );
-  vehicle.vx *= handbrakeMultiplier;
-  vehicle.vy *= handbrakeMultiplier;
 };
 
 const applyDynamics = (

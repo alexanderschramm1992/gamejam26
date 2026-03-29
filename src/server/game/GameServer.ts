@@ -588,7 +588,6 @@ export class GameServer {
       maxForwardSpeed: base.maxForwardSpeed * speedMultiplier,
       maxReverseSpeed: base.maxReverseSpeed * (0.72 + speedMultiplier * 0.28),
       friction: clamp(base.friction - (frictionMultiplier - 1) * 0.035, 0.82, 0.985),
-      handbrakeMultiplier: clamp(base.handbrakeMultiplier - (brakeMultiplier - 1) * 0.08, 0.48, 0.9),
       radius: base.radius,
       collisionDamage: base.collisionDamage
     };
