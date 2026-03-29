@@ -1,5 +1,5 @@
 import { BUILDING_ASSETS, getBuildingAsset, getBuildingCollisionRect, getBuildingDrawRect } from "../shared/map/buildingAssets";
-import { CITY_MAP, findPoiById } from "../shared/map/cityMap";
+import { CITY_MAP, TILE_SIZE, findPoiById } from "../shared/map/cityMap";
 import type { EnemyState, GameSnapshot, PlayerState, ProjectileState, RectZone } from "../shared/model/types";
 import { clamp } from "../shared/utils/math";
 import type { AudioMixer } from "./AudioMixer";
@@ -70,17 +70,26 @@ export const setLocalPlayerCarAsset = async (src: string): Promise<void> => {
 };
 
 let buildingImages = new Map<string, HTMLImageElement>();
+let pavementTileImage: HTMLImageElement | null = null;
 let targetPointerImage: HTMLImageElement | null = null;
+let weaponImage: HTMLImageElement | null = null;
+let bulletImage: HTMLImageElement | null = null;
 
 export const loadHudAssets = async (): Promise<void> => {
-  targetPointerImage = await loadImage("/assets/hud/sushi.png");
+  [targetPointerImage, weaponImage, bulletImage] = await Promise.all([
+    loadImage("/assets/hud/sushi.png"),
+    loadImage("/assets/weapon_systems/MG.png"),
+    loadImage("/assets/weapon_systems/Bullet_MG.png")
+  ]);
 };
 
 export const loadBuildingAssets = async (): Promise<void> => {
-  const images = await Promise.all(
-    BUILDING_ASSETS.map(async (asset) => [asset.id, await loadImage(asset.src)] as const)
-  );
+  const [images, pavementTile] = await Promise.all([
+    Promise.all(BUILDING_ASSETS.map(async (asset) => [asset.id, await loadImage(asset.src)] as const)),
+    loadImage("/assets/street_tiles/none.png")
+  ]);
   buildingImages = new Map(images);
+  pavementTileImage = pavementTile;
 };
 
 const getBuildingImage = (building: RectZone): HTMLImageElement | null => {
@@ -99,6 +108,58 @@ const drawBuildingImage = (
   const drawRect = getBuildingDrawRect(building);
   ctx.drawImage(buildingImage, drawRect.x, drawRect.y, drawRect.width, drawRect.height);
 };
+
+const getBuildingLotRect = (buildingId: string): RectZone | null => {
+  const match = /^b-(\d+)-(\d+)-/.exec(buildingId);
+  if (!match) {
+    return null;
+  }
+
+  const col = Number(match[1]);
+  const row = Number(match[2]);
+  return {
+    id: `lot-${col}-${row}`,
+    x: col * TILE_SIZE + 12,
+    y: row * TILE_SIZE + 12,
+    width: TILE_SIZE - 24,
+    height: TILE_SIZE - 24
+  };
+};
+
+const getBuildingLots = (): RectZone[] => {
+  const lots = new Map<string, RectZone>();
+
+  for (const building of CITY_MAP.buildings) {
+    const lot = getBuildingLotRect(building.id);
+    if (!lot || lots.has(lot.id)) {
+      continue;
+    }
+    lots.set(lot.id, lot);
+  }
+
+  return Array.from(lots.values());
+};
+
+const drawPavedLot = (
+  ctx: CanvasRenderingContext2D,
+  lot: RectZone,
+  pavementPattern: CanvasPattern | null
+): void => {
+  ctx.save();
+  ctx.fillStyle = pavementPattern ?? '#8c8f93';
+  ctx.fillRect(lot.x, lot.y, lot.width, lot.height);
+  ctx.strokeStyle = 'rgba(23, 29, 36, 0.45)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(lot.x + 1, lot.y + 1, lot.width - 2, lot.height - 2);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+  ctx.strokeRect(lot.x + 8, lot.y + 8, lot.width - 16, lot.height - 16);
+  ctx.restore();
+};
+
+const CAMERA_ZOOM_IDLE = 1.08;
+const CAMERA_ZOOM_FAST = 0.96;
+const CAMERA_ZOOM_RESPONSE = 0.08;
+let currentCameraZoom = CAMERA_ZOOM_IDLE;
 
 export interface VisualCache {
   players: Map<string, VisualEntity>;
@@ -130,7 +191,8 @@ const drawVehicle = (
   entity: PlayerState | EnemyState,
   color: string,
   label: string,
-  customImage?: HTMLImageElement | null
+  customImage?: HTMLImageElement | null,
+  weaponAngle?: number
 ): void => {
   const sprite = customImage ?? carImage;
   const isGhostPlayer = entity.type === "player" && entity.ghostTimer > 0;
@@ -177,6 +239,16 @@ const drawVehicle = (
   ctx.textAlign = "center";
   ctx.fillText(label, visual.x, visual.y - entity.radius - 18);
 
+  if (weaponImage && weaponAngle !== undefined && entity.type === "player") {
+    ctx.save();
+    ctx.translate(visual.x, visual.y);
+    ctx.rotate(weaponAngle + Math.PI / 2);
+    const weaponHeight = entity.radius * 2.5;
+    const weaponWidth = weaponHeight * (weaponImage.width / weaponImage.height);
+    ctx.drawImage(weaponImage, -weaponWidth / 2, -weaponHeight / 2, weaponWidth, weaponHeight);
+    ctx.restore();
+  }
+
   const barWidth = 44;
   const healthRatio = clamp(entity.health / entity.maxHealth, 0, 1);
   const batteryRatio = clamp(entity.battery / entity.maxBattery, 0, 1);
@@ -195,6 +267,18 @@ const drawProjectile = (
   visual: VisualEntity,
   projectile: ProjectileState
 ): void => {
+  if (bulletImage) {
+    ctx.save();
+    ctx.translate(visual.x, visual.y);
+    const rotation = Math.atan2(projectile.vy, projectile.vx);
+    ctx.rotate(rotation + Math.PI / 2);
+    const imgHeight = projectile.radius * 4.2;
+    const imgWidth = imgHeight * (bulletImage.width / bulletImage.height);
+    ctx.drawImage(bulletImage, -imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight);
+    ctx.restore();
+    return;
+  }
+
   ctx.save();
   ctx.fillStyle = projectile.ownerType === "player" ? "#ffcf69" : "#ff6767";
   ctx.shadowBlur = 12;
@@ -272,20 +356,33 @@ const drawWorldGeometry = (ctx: CanvasRenderingContext2D): void => {
 
   for (const waterZone of CITY_MAP.water) {
     ctx.save();
-    ctx.fillStyle = "#184f67";
+    ctx.fillStyle = "#0f2e3d";
     ctx.fillRect(waterZone.x, waterZone.y, waterZone.width, waterZone.height);
-    ctx.strokeStyle = "rgba(124, 214, 255, 0.22)";
-    ctx.lineWidth = 3;
-    for (let y = waterZone.y + 24; y < waterZone.y + waterZone.height; y += 72) {
+    ctx.fillStyle = "#1f6481";
+    ctx.fillRect(waterZone.x + 10, waterZone.y + 10, waterZone.width - 20, waterZone.height - 20);
+    ctx.strokeStyle = "rgba(171, 230, 255, 0.2)";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(waterZone.x + 16, waterZone.y + 16, waterZone.width - 32, waterZone.height - 32);
+
+    for (let y = waterZone.y + 48; y < waterZone.y + waterZone.height - 32; y += 96) {
       ctx.beginPath();
-      ctx.moveTo(waterZone.x + 20, y);
-      ctx.lineTo(waterZone.x + waterZone.width - 20, y + 10);
+      ctx.moveTo(waterZone.x + 40, y);
+      ctx.lineTo(waterZone.x + waterZone.width - 40, y + 8);
       ctx.stroke();
     }
-     ctx.restore();
-   }
+
+    ctx.fillStyle = "rgba(4, 20, 28, 0.18)";
+    ctx.fillRect(waterZone.x, waterZone.y, 24, waterZone.height);
+    ctx.fillRect(waterZone.x + waterZone.width - 24, waterZone.y, 24, waterZone.height);
+    ctx.restore();
+  }
 
   drawTiledRoads(ctx);
+
+  const pavementPattern = pavementTileImage ? ctx.createPattern(pavementTileImage, "repeat") : null;
+  for (const lot of getBuildingLots()) {
+    drawPavedLot(ctx, lot, pavementPattern);
+  }
 
   for (const bridge of CITY_MAP.bridges) {
     ctx.save();
@@ -339,25 +436,34 @@ export const renderGame = (
   audio: AudioMixer | undefined = undefined,
   drainBeams: DrainBeamVisual[] = [],
   tireTracks: TireTrackMark[] = [],
-  nowMs = performance.now()
+  nowMs = performance.now(),
+  localPlayerAimAngle = 0
 ): void => {
   const width = canvas.width / window.devicePixelRatio;
   const height = canvas.height / window.devicePixelRatio;
   ctx.clearRect(0, 0, width, height);
 
   const localPlayer = snapshot.players.find((player) => player.id === localPlayerId);
+  const localPlayerSpeed = localPlayer ? Math.abs(Math.hypot(localPlayer.vx, localPlayer.vy)) : 0;
 
   if (audio && localPlayer) {
-    const speed = Math.abs(Math.hypot(localPlayer.vx, localPlayer.vy));
     const maxSpeed = 280;
-    audio.updateEngineSound(speed, maxSpeed);
+    audio.updateEngineSound(localPlayerSpeed, maxSpeed);
   }
 
-  const cameraX = clamp(localPlayer?.x ?? CITY_MAP.width / 2, width / 2, CITY_MAP.width - width / 2);
-  const cameraY = clamp(localPlayer?.y ?? CITY_MAP.height / 2, height / 2, CITY_MAP.height - height / 2);
+  const zoomT = clamp(localPlayerSpeed / 420, 0, 1);
+  const targetCameraZoom = CAMERA_ZOOM_IDLE + (CAMERA_ZOOM_FAST - CAMERA_ZOOM_IDLE) * zoomT;
+  currentCameraZoom += (targetCameraZoom - currentCameraZoom) * CAMERA_ZOOM_RESPONSE;
+
+  const visibleWorldWidth = width / currentCameraZoom;
+  const visibleWorldHeight = height / currentCameraZoom;
+  const cameraX = clamp(localPlayer?.x ?? CITY_MAP.width / 2, visibleWorldWidth / 2, CITY_MAP.width - visibleWorldWidth / 2);
+  const cameraY = clamp(localPlayer?.y ?? CITY_MAP.height / 2, visibleWorldHeight / 2, CITY_MAP.height - visibleWorldHeight / 2);
 
   ctx.save();
-  ctx.translate(width / 2 - cameraX, height / 2 - cameraY);
+  ctx.translate(width / 2, height / 2);
+  ctx.scale(currentCameraZoom, currentCameraZoom);
+  ctx.translate(-cameraX, -cameraY);
   drawWorldGeometry(ctx);
 
   // Draw boost lanes
@@ -439,7 +545,8 @@ export const renderGame = (
         player,
         player.color,
         formatPlayerLabel(player, adminPlayerId),
-        player.id === localPlayerId ? localPlayerCarImage : null
+        player.id === localPlayerId ? localPlayerCarImage : null,
+        player.id === localPlayerId ? localPlayerAimAngle : undefined
       );
     }
   }

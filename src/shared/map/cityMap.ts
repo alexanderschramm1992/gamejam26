@@ -1,11 +1,17 @@
 import type { CirclePoi, NavigationNode, RectZone, Vec2, WorldMapData } from "../model/types";
 import { distance } from "../utils/math";
 
-const TILE_SIZE = 256;
-const MAP_WIDTH_TILES = 13;
-const MAP_HEIGHT_TILES = 11;
+export const TILE_SIZE = 256;
+const MAP_WIDTH_TILES = 26;
+const MAP_HEIGHT_TILES = 22;
 
 const tile = (units: number): number => units * TILE_SIZE;
+const cellKey = (col: number, row: number): string => `${col},${row}`;
+
+const parseCellKey = (key: string): [number, number] => {
+  const [col, row] = key.split(",").map(Number);
+  return [col, row];
+};
 
 const zone = (id: string, x: number, y: number, width: number, height: number): RectZone => ({
   id,
@@ -31,80 +37,182 @@ const circlePoi = (id: string, label: string, col: number, row: number, radius: 
   radius
 });
 
-const navigationNodes: NavigationNode[] = [
-  { id: "west-gate", x: tile(1.5), y: tile(1.5), neighbors: ["market-north", "old-town-west"] },
-  { id: "market-north", x: tile(4.5), y: tile(1.5), neighbors: ["west-gate", "east-north", "old-town-market"] },
-  { id: "east-north", x: tile(9.5), y: tile(1.5), neighbors: ["market-north", "east-slip-junction", "east-bridge"] },
-  { id: "riverside-deadend", x: tile(6.5), y: tile(2.5), neighbors: ["riverside-crossing"] },
-  { id: "east-slip-junction", x: tile(9.5), y: tile(3.5), neighbors: ["east-north", "harbor-slip", "east-bridge"] },
-  { id: "harbor-slip", x: tile(11.5), y: tile(3.5), neighbors: ["east-slip-junction", "harbor-mid"] },
-  { id: "old-town-west", x: tile(1.5), y: tile(4.5), neighbors: ["west-gate", "old-town-market", "south-west"] },
-  { id: "old-town-market", x: tile(4.5), y: tile(4.5), neighbors: ["market-north", "old-town-west", "riverside-crossing", "bridge-west"] },
-  { id: "riverside-crossing", x: tile(6.5), y: tile(4.5), neighbors: ["riverside-deadend", "old-town-market", "bridge-west", "river-south"] },
-  { id: "bridge-west", x: tile(4.5), y: tile(5.5), neighbors: ["old-town-market", "riverside-crossing", "east-bridge", "market-south"] },
-  { id: "east-bridge", x: tile(9.5), y: tile(5.5), neighbors: ["east-north", "east-slip-junction", "bridge-west", "harbor-mid", "east-south"] },
-  { id: "harbor-mid", x: tile(11.5), y: tile(5.5), neighbors: ["harbor-slip", "east-bridge", "harbor-south"] },
-  { id: "south-west", x: tile(1.5), y: tile(8.5), neighbors: ["old-town-west", "market-south", "dispatch-lane"] },
-  { id: "market-south", x: tile(4.5), y: tile(8.5), neighbors: ["south-west", "river-south", "bridge-west", "dispatch-east", "east-south"] },
-  { id: "river-south", x: tile(6.5), y: tile(8.5), neighbors: ["riverside-crossing", "market-south", "east-south"] },
-  { id: "east-south", x: tile(9.5), y: tile(8.5), neighbors: ["east-bridge", "market-south", "river-south", "harbor-south", "east-tail"] },
-  { id: "harbor-south", x: tile(11.5), y: tile(8.5), neighbors: ["harbor-mid", "east-south", "harbor-tail"] },
-  { id: "dispatch-lane", x: tile(1.5), y: tile(9.5), neighbors: ["south-west", "dispatch-east"] },
-  { id: "dispatch-east", x: tile(4.5), y: tile(9.5), neighbors: ["dispatch-lane", "market-south"] },
-  { id: "east-tail", x: tile(9.5), y: tile(9.5), neighbors: ["east-south", "harbor-tail"] },
-  { id: "harbor-tail", x: tile(11.5), y: tile(9.5), neighbors: ["harbor-south", "east-tail"] }
-];
+const ROAD_LAYOUT = [
+  ["west-artery", 1, 0, 1, 22],
+  ["market-west", 4, 0, 1, 22],
+  ["civic-avenue", 11, 0, 1, 22],
+  ["dispatch-spine", 15, 0, 1, 22],
+  ["harbor-spine", 20, 0, 1, 22],
+  ["outer-east", 24, 0, 1, 22],
+  ["north-loop", 0, 1, 26, 1],
+  ["old-town-crossing", 0, 5, 18, 1],
+  ["midtown-boulevard", 2, 9, 19, 1],
+  ["civic-ring", 0, 13, 21, 1],
+  ["harbor-front", 12, 17, 13, 1],
+  ["terminal-way", 3, 20, 22, 1]
+] as const;
 
-const roads: RectZone[] = [
-  tileZone("west-artery", 1, 0, 1, 11),
-  tileZone("market-street", 4, 0, 1, 11),
-  tileZone("riverside-drive", 6, 2, 1, 8),
-  tileZone("east-avenue", 9, 0, 1, 10),
-  tileZone("harbor-lane", 11, 3, 1, 8),
-  tileZone("north-bridge-boulevard", 0, 1, 13, 1),
-  tileZone("old-town-avenue", 0, 4, 7, 1),
-  tileZone("central-bridge", 4, 5, 9, 1),
-  tileZone("east-slip-road", 9, 3, 4, 1),
-  tileZone("south-bypass", 0, 8, 13, 1),
-  tileZone("dispatch-lane", 0, 9, 6, 1)
-];
+const WATER_LAYOUT = [
+  ["central-canal", 7, 0, 4, 22],
+  ["harbor-basin", 18, 14, 5, 7]
+] as const;
 
-const parks: RectZone[] = [
-  zone("founders-park", 550, 1330, 420, 650),
-  zone("east-garden", 2580, 1560, 180, 440)
-];
+const BRIDGE_LAYOUT = [
+  ["north-bridge", 7, 1, 4, 1],
+  ["midtown-bridge", 7, 9, 4, 1],
+  ["civic-bridge", 7, 13, 4, 1],
+  ["terminal-bridge", 7, 20, 4, 1],
+  ["harbor-front-bridge", 18, 17, 5, 1],
+  ["terminal-basin-bridge", 18, 20, 5, 1],
+  ["harbor-spine-bridge", 20, 14, 1, 7]
+] as const;
 
-const water: RectZone[] = [
-  tileZone("canal", 7, 0, 2, 11)
-];
+const PARK_LAYOUT = [
+  ["west-garden", 2, 14, 2, 3],
+  ["riverside-garden", 16, 2, 3, 2],
+  ["civic-green", 12, 6, 2, 2],
+  ["canal-commons", 16, 14, 3, 2],
+  ["terminal-green", 21, 10, 2, 2],
+  ["south-pocket-park", 5, 17, 2, 2]
+] as const;
 
-const bridges: RectZone[] = [
-  tileZone("north-bridge", 7, 1, 2, 1),
-  tileZone("market-bridge", 7, 5, 2, 1),
-  tileZone("south-bridge", 7, 8, 2, 1)
-];
+const roads = ROAD_LAYOUT.map(([id, col, row, width, height]) => tileZone(id, col, row, width, height));
+const water = WATER_LAYOUT.map(([id, col, row, width, height]) => tileZone(id, col, row, width, height));
+const bridges = BRIDGE_LAYOUT.map(([id, col, row, width, height]) => tileZone(id, col, row, width, height));
+const parks = PARK_LAYOUT.map(([id, col, row, width, height]) => tileZone(id, col, row, width, height));
 
-const buildings: RectZone[] = [
-  zone("b1", 540, 540, 180, 200),
-  zone("b2", 760, 560, 190, 170),
-  zone("b3", 560, 790, 155, 170),
-  zone("b4", 760, 780, 195, 205),
-  zone("b5", 1310, 540, 180, 200),
-  zone("b6", 1310, 780, 190, 210),
-  zone("b7", 1305, 1560, 185, 170),
-  zone("b8", 1305, 1770, 195, 220),
-  zone("b9", 40, 540, 170, 250),
-  zone("b10", 50, 820, 150, 150),
-  zone("b11", 35, 1560, 185, 420),
-  zone("b12", 40, 2600, 170, 170),
-  zone("b13", 2585, 540, 170, 180),
-  zone("b14", 2580, 1060, 180, 170),
-  zone("b15", 3095, 540, 180, 180),
-  zone("b16", 3090, 1060, 190, 170),
-  zone("b17", 3090, 1580, 185, 420),
-  zone("b18", 2580, 2600, 180, 170),
-  zone("b19", 3090, 2600, 180, 170)
-];
+const collectTileCells = (zones: RectZone[]): Set<string> => {
+  const cells = new Set<string>();
+
+  for (const region of zones) {
+    const startCol = Math.round(region.x / TILE_SIZE);
+    const startRow = Math.round(region.y / TILE_SIZE);
+    const width = Math.round(region.width / TILE_SIZE);
+    const height = Math.round(region.height / TILE_SIZE);
+
+    for (let col = startCol; col < startCol + width; col += 1) {
+      for (let row = startRow; row < startRow + height; row += 1) {
+        cells.add(cellKey(col, row));
+      }
+    }
+  }
+
+  return cells;
+};
+
+const roadCells = collectTileCells(roads);
+const waterCells = collectTileCells(water);
+const parkCells = collectTileCells(parks);
+
+const buildNavigationNodes = (cells: Set<string>): NavigationNode[] =>
+  Array.from(cells)
+    .map(parseCellKey)
+    .sort((a, b) => a[1] - b[1] || a[0] - b[0])
+    .map(([col, row]) => ({
+      id: `road-${col}-${row}`,
+      x: tile(col + 0.5),
+      y: tile(row + 0.5),
+      neighbors: [
+        [col - 1, row],
+        [col + 1, row],
+        [col, row - 1],
+        [col, row + 1]
+      ]
+        .filter(([neighborCol, neighborRow]) => cells.has(cellKey(neighborCol, neighborRow)))
+        .map(([neighborCol, neighborRow]) => `road-${neighborCol}-${neighborRow}`)
+    }));
+
+const navigationNodes = buildNavigationNodes(roadCells);
+const navigationNodeById = new Map(navigationNodes.map((node) => [node.id, node] as const));
+
+const hashString = (value: string): number => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash * 31 + value.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+};
+
+const OPEN_LOT_CELLS = new Set([
+  cellKey(0, 0),
+  cellKey(2, 0),
+  cellKey(18, 10),
+  cellKey(23, 14),
+  cellKey(25, 21)
+]);
+
+const createBuildingZone = (
+  id: string,
+  col: number,
+  row: number,
+  offsetX: number,
+  offsetY: number,
+  width: number,
+  height: number
+): RectZone => zone(id, tile(col) + offsetX, tile(row) + offsetY, width, height);
+
+const createBuildingCluster = (col: number, row: number): RectZone[] => {
+  const seed = hashString(`${col}:${row}`);
+  if (seed % 13 === 0) {
+    return [];
+  }
+
+  const baseId = `b-${col}-${row}`;
+  const make = (
+    suffix: string,
+    offsetX: number,
+    offsetY: number,
+    width: number,
+    height: number
+  ): RectZone => createBuildingZone(`${baseId}-${suffix}`, col, row, offsetX, offsetY, width, height);
+
+  switch (seed % 6) {
+    case 0:
+      return [
+        make("a", 24, 120, 88, 96),
+        make("b", 128, 108, 102, 112)
+      ];
+    case 1:
+      return [
+        make("a", 28, 88, 122, 136),
+        make("b", 162, 132, 60, 78)
+      ];
+    case 2:
+      return [
+        make("a", 26, 136, 78, 84),
+        make("b", 114, 132, 82, 90),
+        make("c", 70, 78, 118, 100)
+      ];
+    case 3:
+      return [
+        make("a", 28, 98, 92, 126),
+        make("b", 136, 88, 86, 136)
+      ];
+    case 4:
+      return [
+        make("a", 28, 134, 74, 84),
+        make("b", 112, 136, 72, 80),
+        make("c", 64, 76, 124, 110)
+      ];
+    default:
+      return [
+        make("a", 36, 102, 142, 122)
+      ];
+  }
+};
+
+const buildings: RectZone[] = [];
+
+for (let row = 0; row < MAP_HEIGHT_TILES; row += 1) {
+  for (let col = 0; col < MAP_WIDTH_TILES; col += 1) {
+    const key = cellKey(col, row);
+    if (roadCells.has(key) || waterCells.has(key) || parkCells.has(key) || OPEN_LOT_CELLS.has(key)) {
+      continue;
+    }
+
+    buildings.push(...createBuildingCluster(col, row));
+  }
+}
 
 export const CITY_MAP: WorldMapData = {
   width: TILE_SIZE * MAP_WIDTH_TILES,
@@ -115,35 +223,43 @@ export const CITY_MAP: WorldMapData = {
   water,
   bridges,
   chargeStations: [
-    circlePoi("charge-market", "Market Charge", 4, 5, 96),
-    circlePoi("charge-east", "Bridge Charge", 9, 5, 96),
-    circlePoi("charge-harbor", "Harbor Charge", 10, 8, 96)
+    circlePoi("charge-west", "Old Town Charge", 4, 5, 96),
+    circlePoi("charge-riverside", "Riverside Charge", 11, 9, 96),
+    circlePoi("charge-central", "Civic Charge", 15, 13, 96),
+    circlePoi("charge-harbor", "Harbor Charge", 20, 17, 96),
+    circlePoi("charge-east", "Skyline Charge", 24, 9, 96)
   ],
   boostLanes: [
-    { id: "boost-market", x: tile(4) + 30, y: tile(2) + 20, width: 196, height: 720, heading: Math.PI / 2 },
-    { id: "boost-bypass", x: tile(5) + 20, y: tile(8) + 30, width: 980, height: 196, heading: 0 },
-    { id: "boost-east", x: tile(9) + 30, y: tile(5) + 20, width: 196, height: 700, heading: Math.PI / 2 }
+    { id: "boost-west", x: tile(4) + 30, y: tile(2) + 20, width: 196, height: tile(3) - 40, heading: Math.PI / 2 },
+    { id: "boost-civic", x: tile(11) + 20, y: tile(13) + 30, width: tile(4) - 40, height: 196, heading: 0 },
+    { id: "boost-harbor", x: tile(20) + 30, y: tile(14) + 20, width: 196, height: tile(3) - 40, heading: Math.PI / 2 },
+    { id: "boost-terminal", x: tile(20) + 24, y: tile(20) + 30, width: tile(4) - 48, height: 196, heading: 0 }
   ],
   dispatchPoints: [
-    circlePoi("dispatch-central", "Founders Dispatch", 1, 9, 112)
+    circlePoi("dispatch-central", "Civic Dispatch", 15, 13, 112)
   ],
   deliveryPoints: [
     circlePoi("delivery-old-town", "Old Town Corner", 1, 1, 110),
-    circlePoi("delivery-parkside", "Parkside Exchange", 4, 8, 110),
-    circlePoi("delivery-east-garden", "East Garden", 9, 8, 110),
-    circlePoi("delivery-harbor", "Harbor Plaza", 11, 3, 110)
+    circlePoi("delivery-market", "Riverside Market", 4, 9, 110),
+    circlePoi("delivery-midtown", "Midtown Exchange", 11, 5, 110),
+    circlePoi("delivery-garden", "Garden Quarter", 15, 17, 110),
+    circlePoi("delivery-harbor", "Harbor Plaza", 20, 17, 110),
+    circlePoi("delivery-terminal", "Terminal Gate", 24, 20, 110),
+    circlePoi("delivery-south", "South Commons", 15, 20, 110)
   ],
   enemyHotspots: [
-    circlePoi("hotspot-riverside", "Canal Cutters", 6, 2, 120),
-    circlePoi("hotspot-east-tail", "Slip Road Crew", 9, 9, 120),
-    circlePoi("hotspot-harbor", "Harbor Pack", 11, 9, 120)
+    circlePoi("hotspot-west", "Old Town Crew", 4, 2, 120),
+    circlePoi("hotspot-canal", "Canal North", 11, 9, 120),
+    circlePoi("hotspot-central", "Civic Ring", 15, 13, 120),
+    circlePoi("hotspot-harbor", "Harbor Pack", 20, 20, 120),
+    circlePoi("hotspot-east", "Outer East", 24, 5, 120)
   ],
   navigationNodes,
   playerSpawns: [
-    point(1, 9, 0.34, 0.34),
-    point(1, 9, 0.66, 0.34),
-    point(1, 9, 0.34, 0.66),
-    point(1, 9, 0.66, 0.66)
+    point(15, 13, 0.34, 0.34),
+    point(15, 13, 0.66, 0.34),
+    point(15, 13, 0.34, 0.66),
+    point(15, 13, 0.66, 0.66)
   ]
 };
 
@@ -162,7 +278,7 @@ export const findNearestNavigationNode = (position: Vec2): NavigationNode =>
 
 export const findPath = (startId: string, goalId: string): NavigationNode[] => {
   if (startId === goalId) {
-    const node = CITY_MAP.navigationNodes.find((candidate) => candidate.id === startId);
+    const node = navigationNodeById.get(startId);
     return node ? [node] : [];
   }
 
@@ -175,7 +291,7 @@ export const findPath = (startId: string, goalId: string): NavigationNode[] => {
     if (!currentId) break;
     if (currentId === goalId) break;
 
-    const currentNode = CITY_MAP.navigationNodes.find((candidate) => candidate.id === currentId);
+    const currentNode = navigationNodeById.get(currentId);
     if (!currentNode) continue;
 
     for (const neighborId of currentNode.neighbors) {
@@ -199,6 +315,6 @@ export const findPath = (startId: string, goalId: string): NavigationNode[] => {
   }
 
   return pathIds
-    .map((pathId) => CITY_MAP.navigationNodes.find((node) => node.id === pathId))
+    .map((pathId) => navigationNodeById.get(pathId))
     .filter((node): node is NavigationNode => Boolean(node));
 };

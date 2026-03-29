@@ -8,9 +8,10 @@ const projectileFrom = (
   ownerType: "player" | "enemy",
   id: string,
   damage: number,
-  speed: number
+  speed: number,
+  angle: number
 ): ProjectileState => {
-  const forward = fromAngle(owner.rotation);
+  const forward = fromAngle(angle);
   return {
     id,
     ownerId: owner.id,
@@ -28,7 +29,8 @@ const projectileFrom = (
 export const firePlayerProjectile = (
   player: PlayerState,
   id: string,
-  damageMultiplier = 1
+  damageMultiplier = 1,
+  aimAngle = player.rotation
 ): ProjectileState => {
   player.weaponCooldown = GAME_CONFIG.player.fireCooldown;
   player.battery = Math.max(0, player.battery - GAME_CONFIG.battery.shootDrain);
@@ -37,7 +39,8 @@ export const firePlayerProjectile = (
     "player",
     id,
     GAME_CONFIG.player.projectileDamage * damageMultiplier,
-    GAME_CONFIG.player.projectileSpeed
+    GAME_CONFIG.player.projectileSpeed,
+    aimAngle
   );
 };
 
@@ -48,7 +51,7 @@ export const fireEnemyProjectile = (
   cooldown: number
 ): ProjectileState => {
   enemy.weaponCooldown = cooldown;
-  return projectileFrom(enemy, "enemy", id, damage, 700);
+  return projectileFrom(enemy, "enemy", id, damage, 700, enemy.rotation);
 };
 
 export const updateProjectiles = (

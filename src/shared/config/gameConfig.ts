@@ -43,7 +43,7 @@ export const GAME_CONFIG = {
     respawnDelay: 4,
     respawnGhostDuration: 2,
     fireCooldown: 0.2,
-    projectileSpeed: 860,
+    projectileSpeed: 1180,
     projectileDamage: 18
   },
   battery: {
