@@ -159,6 +159,8 @@
 - Keine generische Rasterkarte.
 - Straßenstruktur soll wie eine echte Stadt oder glaubwürdige urbane Zone wirken.
 - Zeichne ein paar straßen und gebäude durch die man nicht durchfahren kann
+- Parks oder Grünflächen als sichere/offene Zonen
+- Fluss als trennendes Geländemerkmal mit wenigen Brücken und damit riskanten Übergängen
 
 ### Kartenanforderungen
 - Kurven, Hauptstraßen, Nebenstraßen, Kreuzungen und Engstellen.
