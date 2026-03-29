@@ -52,7 +52,6 @@ let snapshot: GameSnapshot | null = null;
 let inputSequence = 0;
 let lastRenderedEvent = 0;
 let vehicleSelectionConfirmed = false;
-let localDeathCount = 0;
 let wasLocalPlayerDestroyed = false;
 const drainBeams: DrainBeamVisual[] = [];
 
@@ -151,10 +150,8 @@ const syncGameOverState = (nowMs: number): void => {
   }
 
   if (localPlayer.destroyed && !wasLocalPlayerDestroyed) {
-    localDeathCount += 1;
     adminMenu.setOpen(false);
     gameOverOverlay.show({
-      deathCount: localDeathCount,
       respawnTimer: localPlayer.respawnTimer
     });
   }

@@ -1,5 +1,4 @@
 export interface GameOverShowOptions {
-  deathCount: number;
   respawnTimer: number;
 }
 
@@ -15,10 +14,7 @@ export class GameOverOverlay {
   private readonly zonk = new Audio("/music/zonk.mp3");
   private restartHandler: RestartHandler | null = null;
   private open = false;
-  private deathCount = 0;
   private respawnReady = false;
-  private evasionActive = false;
-  private evasionUntil = 0;
 
   constructor() {
     this.zonk.preload = "auto";
@@ -62,7 +58,6 @@ export class GameOverOverlay {
     this.root.appendChild(panel);
     document.body.appendChild(this.root);
 
-    this.root.addEventListener("mousemove", (event) => this.handleMouseMove(event));
     this.renderContent(0);
     this.updateButtonState();
   }
@@ -77,20 +72,10 @@ export class GameOverOverlay {
 
   public show(options: GameOverShowOptions): void {
     this.open = true;
-    this.deathCount = options.deathCount;
     this.respawnReady = false;
     this.root.classList.add("is-visible");
     document.body.classList.add("is-gameover-active");
     this.playZonk();
-
-    if (options.deathCount >= 3) {
-      this.evasionActive = true;
-      this.evasionUntil = performance.now() + 5000;
-    } else {
-      this.evasionActive = false;
-      this.evasionUntil = 0;
-    }
-
     this.renderContent(options.respawnTimer);
     this.updateButtonState();
     requestAnimationFrame(() => this.centerButton());
@@ -100,8 +85,6 @@ export class GameOverOverlay {
     this.open = false;
     this.root.classList.remove("is-visible");
     document.body.classList.remove("is-gameover-active");
-    this.evasionActive = false;
-    this.evasionUntil = 0;
     this.respawnReady = false;
     this.centerButton();
     this.updateButtonState();
@@ -113,17 +96,7 @@ export class GameOverOverlay {
     this.updateButtonState();
   }
 
-  public update(nowMs: number): void {
-    if (!this.open || !this.evasionActive || nowMs < this.evasionUntil) {
-      return;
-    }
-
-    this.evasionActive = false;
-    this.evasionUntil = 0;
-    this.renderContent(0);
-    this.centerButton();
-    this.updateButtonState();
-  }
+  public update(_nowMs: number): void {}
 
   private playZonk(): void {
     this.zonk.currentTime = 0;
@@ -132,42 +105,16 @@ export class GameOverOverlay {
 
   private renderContent(respawnTimer: number): void {
     this.titleEl.textContent = "Game Over";
-    this.messageEl.textContent =
-      this.deathCount >= 3
-        ? `Crash Nummer ${this.deathCount}. Die Stadt lacht schon.`
-        : "Dein Lieferwagen ist schrottreif.";
-
-    if (this.evasionActive) {
-      this.statusEl.textContent = this.respawnReady
-        ? "Respawn bereit. Fang erst den Button ein, dann geht es weiter."
-        : `Respawn in ${respawnTimer.toFixed(1)}s. Danach weicht der Button noch kurz aus.`;
-      return;
-    }
-
+    this.messageEl.textContent = "Dein Lieferwagen ist schrottreif.";
     this.statusEl.textContent = this.respawnReady
       ? "Fahrzeug steht wieder bereit. Druecke Neu starten."
       : `Respawn in ${respawnTimer.toFixed(1)}s`;
   }
 
   private updateButtonState(): void {
-    const enabled = this.open && this.respawnReady && !this.evasionActive;
+    const enabled = this.open && this.respawnReady;
     this.restartButton.disabled = !enabled;
-    this.restartButton.classList.toggle("is-evading", this.evasionActive);
-  }
-
-  private handleMouseMove(event: MouseEvent): void {
-    if (!this.open || !this.evasionActive) {
-      return;
-    }
-
-    const buttonRect = this.restartButton.getBoundingClientRect();
-    const distanceX = event.clientX - (buttonRect.left + buttonRect.width / 2);
-    const distanceY = event.clientY - (buttonRect.top + buttonRect.height / 2);
-    const cursorDistance = Math.hypot(distanceX, distanceY);
-
-    if (cursorDistance < 150) {
-      this.randomizeButtonPosition(event.clientX, event.clientY);
-    }
+    this.restartButton.classList.remove("is-evading");
   }
 
   private centerButton(): void {
@@ -176,32 +123,6 @@ export class GameOverOverlay {
     const left = Math.max(0, (areaRect.width - buttonRect.width) / 2);
     const top = Math.max(0, (areaRect.height - buttonRect.height) / 2);
     this.setButtonPosition(left, top);
-  }
-
-  private randomizeButtonPosition(cursorX: number, cursorY: number): void {
-    const areaRect = this.actionArea.getBoundingClientRect();
-    const buttonRect = this.restartButton.getBoundingClientRect();
-    const maxLeft = Math.max(0, areaRect.width - buttonRect.width);
-    const maxTop = Math.max(0, areaRect.height - buttonRect.height);
-
-    let bestLeft = maxLeft / 2;
-    let bestTop = maxTop / 2;
-    let bestScore = -1;
-
-    for (let attempt = 0; attempt < 12; attempt += 1) {
-      const nextLeft = Math.random() * maxLeft;
-      const nextTop = Math.random() * maxTop;
-      const centerX = areaRect.left + nextLeft + buttonRect.width / 2;
-      const centerY = areaRect.top + nextTop + buttonRect.height / 2;
-      const score = Math.hypot(cursorX - centerX, cursorY - centerY);
-      if (score > bestScore) {
-        bestScore = score;
-        bestLeft = nextLeft;
-        bestTop = nextTop;
-      }
-    }
-
-    this.setButtonPosition(bestLeft, bestTop);
   }
 
   private setButtonPosition(left: number, top: number): void {
