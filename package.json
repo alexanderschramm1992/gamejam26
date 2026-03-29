@@ -8,7 +8,8 @@
     "build:client": "webpack --mode production",
     "build:server": "tsc -p tsconfig.server.json",
     "typecheck": "tsc -p tsconfig.server.json --noEmit",
-    "start": "node dist/server/index.js"
+    "start": "node dist/server/index.js",
+    "startFresh": "npm run build && npm run start"
   },
   "dependencies": {
     "express": "^4.21.2",

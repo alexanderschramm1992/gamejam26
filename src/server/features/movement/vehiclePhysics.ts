@@ -37,16 +37,15 @@ export const stepVehicle = (
   const maxForward = tuning.maxForwardSpeed * boostFactor * roadFactor;
   const maxReverse = tuning.maxReverseSpeed * roadFactor;
   const forwardInput = clamp(input.throttle, -1, 1);
-  const handbraking = input.handbrake;
 
   // 1. Berechne Fahrtgeschwindigkeit (skalare "Triebkraft")
-  applyAcceleration(vehicle, forwardInput, tuning, lowBatteryFactor, maxForward, maxReverse, dt, frameFactor, handbraking);
+  applyAcceleration(vehicle, forwardInput, tuning, lowBatteryFactor, maxForward, maxReverse, dt, frameFactor);
 
   // 2. Bremsen wirken auf den Geschwindigkeitsvektor
-  applyBrake(vehicle, handbraking, tuning, frameFactor);
+  applyBrake(vehicle, tuning, frameFactor);
 
   // 3. Lenkung und Drift-Dynamik
-  applyDynamics(vehicle, input.steer, tuning, handbraking, maxForward, dt);
+  applyDynamics(vehicle, input.steer, tuning, maxForward, dt);
 
   // 4. Position basierend auf echtem Bewegungsvektor aktualisieren
   applyMovement(vehicle, offRoad, dt);
@@ -60,14 +59,8 @@ const applyAcceleration = (
   maxForward: number,
   maxReverse: number,
   dt: number,
-  frameFactor: number,
-  handbraking: boolean
+  frameFactor: number
 ): void => {
-  // Wenn Handbremse aktiv, wird Beschleunigung ignoriert
-  if (handbraking) {
-    forwardInput = 0;
-  }
-
   // driveVelocity ist hier ein interner Zustand für die Triebkraft (nicht direkt sichtbar)
   if (forwardInput > 0) {
     vehicle.driveVelocity += tuning.acceleration * forwardInput * lowBatteryFactor * dt;
@@ -82,13 +75,9 @@ const applyAcceleration = (
 
 const applyBrake = (
   vehicle: VehicleState,
-  braking: boolean,
   tuning: VehicleTuning,
   frameFactor: number
 ): void => {
-  if (!braking) {
-    return;
-  }
 
   const brakeDrag = clamp(
     1 - tuning.brakeStrength * GAME_CONFIG.vehiclePhysics.brakeDragStrength * frameFactor,
@@ -105,7 +94,6 @@ const applyDynamics = (
   vehicle: VehicleState,
   steer: number,
   tuning: VehicleTuning,
-  handbraking: boolean,
   maxForward: number,
   dt: number
 ): void => {
@@ -124,9 +112,7 @@ const applyDynamics = (
   }
 
   // Berechne die gewünschte Fahrtrichtung basierend auf Lenkung
-  const effectiveTurnSpeed = handbraking
-    ? tuning.turnSpeed * GAME_CONFIG.vehiclePhysics.brakingTurnSpeedMultiplier
-    : tuning.turnSpeed;
+  const effectiveTurnSpeed = tuning.turnSpeed;
 
   // Geschwindigkeitsabhängiger Wendekreis
   const speedFactor = clamp(driveSpeed / Math.max(80, maxForward), 0, 1);
@@ -149,10 +135,7 @@ const applyDynamics = (
   
   // Interpoliere die Fahrtrichtung gegen die gewünschte Richtung
   const driftResponse = GAME_CONFIG.vehiclePhysics.driftResponse;
-  const baseLateralGrip = GAME_CONFIG.vehiclePhysics.lateralGrip;
-  const lateralGrip = handbraking
-    ? baseLateralGrip * GAME_CONFIG.vehiclePhysics.handbrakeLateralGripMultiplier
-    : baseLateralGrip;
+  const lateralGrip = GAME_CONFIG.vehiclePhysics.lateralGrip;
   
   const blendedDirection = {
     x: currentDirection.x + (desiredDirection.x - currentDirection.x) * driftResponse * lateralGrip,
