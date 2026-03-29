@@ -99,11 +99,11 @@ export const GAME_CONFIG = {
     interactionDistanceMultiplier: 3.6
   },
   enemies: {
-    spawnInterval: 2.5,        // Sekunden zwischen Gegner-Spawns
-    minSpawnInterval: 0.35,    // Minimales Spawn-Intervall (hardlimit)
-    maxBaseCount: 5,           // Basis-Gegneranzahl (wird mit Spieleranzahl + Danger multipliziert)
-    maxActiveCount: 12,        // Maximale gleichzeitig aktive Gegner
-    missionPressure: 2         // Zusätzliche Gegner wenn Mission aktiv
+    spawnInterval: 5,         // Sekunden zwischen Gegner-Spawns
+    minSpawnInterval: 1,      // Minimales Spawn-Intervall (hardlimit)
+    maxBaseCount: 3,          // Basis-Gegneranzahl (wird mit Spieleranzahl + Danger multipliziert)
+    maxActiveCount: 8,        // Maximale gleichzeitig aktive Gegner
+    missionPressure: 1        // Zusätzliche Gegner wenn Mission aktiv
   },
   ui: {
     feedEventCount: 6
