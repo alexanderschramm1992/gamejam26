@@ -79,6 +79,7 @@ export class InputController {
         steer: 0,
         shoot: false,
         interact: false,
+        handbrake: false,
         aimAngle,
         seq
       };
@@ -96,6 +97,7 @@ export class InputController {
       steer,
       shoot: pressedKeys.has("Space") || this.pointerDown,
       interact: pressedKeys.has("KeyE"),
+      handbrake: pressedKeys.has("ShiftLeft") || pressedKeys.has("ShiftRight"),
       aimAngle,
       seq
     };

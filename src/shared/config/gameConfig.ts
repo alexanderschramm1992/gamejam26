@@ -33,10 +33,12 @@ export const GAME_CONFIG = {
     acceleration: 500,
     reverseAcceleration: 170,
     brakeStrength: 3.8,
-    turnSpeed: 3.5, // Lenkgeschwindigkeit - höher = schneller lenken/engere Kurven
+    turnSpeed: 2.5, // Lenkgeschwindigkeit - höher = schneller lenken/engere Kurven
+    handbrakeTurnSpeed: 3.5, // Lenkgeschwindigkeit mit aktivierter Handbremse - für bessere Kontrolle beim Driften
     maxForwardSpeed: 460,
     maxReverseSpeed: 160,
-    friction: 0.9999,
+    friction: 0.9, // Wert 0-1: wie viel Geschwindigkeit pro Sekunde erhalten bleibt (linear decay)
+    handbrakeFriction: 0.6, // Reibung mit aktivierter Handbremse - höher = weniger Rutsch
     radius: 22,
     collisionDamage: 0.018,
     maxHealth: 120,
@@ -69,13 +71,14 @@ export const GAME_CONFIG = {
     lowBatteryFactor: 0.72,
     offRoadFactor: 0.7,
     brakeStrength: 8,
-    brakeDragStrength: 0.015,
-    brakeDragMin: 0.5,
-    brakeDragMax: 0.96,
-    minimumTurningVelocity: 8, // Mindestgeschwindigkeit zum Lenken - niedriger = auch langsamer noch lenken können
-    // Drift-Parameter für realistische Fahrtdynamik
-    driftResponse: 0.3, // Wie schnell die Fahrtrichtung dem Lenkwinkel folgt (0-1) - höher = direktere Lenkreaktion
-    lateralGrip: 0.6, // Seitenhaftung in Kurven - höher = besserer Grip beim Lenken (0-1)
+    minimumTurningVelocity: 2, // Mindestgeschwindigkeit zum Lenken - niedriger = auch langsamer noch lenken können
+    // Drift-Dämpfung für realistische Fahrtdynamik (0-1)
+    // Steuert wie schnell die Fahrtrichtung (vx/vy) dem Lenkwinkel folgt:
+    // - Höher (z.B. 0.3-0.5): Fahrzeug folgt dem Lenkwinkel direkt und präzise (arcade-like, hochgradig steuerbar)
+    // - Mittler (z.B. 0.15-0.25): Balanciertes Verhalten mit natürlichem Drift in Kurven
+    // - Niedriger (z.B. 0.05-0.12): Fahrzeug rutscht stark, verzögert Lenkreaktion (simulativ, schwerer zu fahren)
+    driftDamping: 0.15,
+    handbrakeDriftDamping: 0.04, // Drift-Dämpfung mit aktivierter Handbremse - höher = weniger Drift
     angularVelocityMax: 4.0 // Max Rotationsgeschwindigkeit pro Sekunde - höher = schnellere Drehbewegungen
   },
   combat: {
@@ -98,8 +101,11 @@ export const GAME_CONFIG = {
     interactionDistanceMultiplier: 3.6
   },
   enemies: {
-    spawnInterval: 2.5,
-    maxBaseCount: 5
+    spawnInterval: 2.5,        // Sekunden zwischen Gegner-Spawns
+    minSpawnInterval: 0.35,    // Minimales Spawn-Intervall (hardlimit)
+    maxBaseCount: 5,           // Basis-Gegneranzahl (wird mit Spieleranzahl + Danger multipliziert)
+    maxActiveCount: 12,        // Maximale gleichzeitig aktive Gegner
+    missionPressure: 2         // Zusätzliche Gegner wenn Mission aktiv
   },
   ui: {
     feedEventCount: 6
@@ -115,7 +121,7 @@ export const ENEMY_ARCHETYPES: Record<EnemyKind, EnemyArchetype> = {
     turnSpeed: 2.2,
     maxForwardSpeed: 355,
     maxReverseSpeed: 90,
-    friction: 0.955,
+    friction: 0.95,
     radius: 27,
     collisionDamage: 0.028,
     maxHealth: 88,
@@ -134,7 +140,7 @@ export const ENEMY_ARCHETYPES: Record<EnemyKind, EnemyArchetype> = {
     turnSpeed: 2.45,
     maxForwardSpeed: 325,
     maxReverseSpeed: 105,
-    friction: 0.948,
+    friction: 0.94,
     radius: 23,
     collisionDamage: 0.02,
     maxHealth: 58,
@@ -153,7 +159,7 @@ export const ENEMY_ARCHETYPES: Record<EnemyKind, EnemyArchetype> = {
     turnSpeed: 2.85,
     maxForwardSpeed: 390,
     maxReverseSpeed: 125,
-    friction: 0.952,
+    friction: 0.944,
     radius: 21,
     collisionDamage: 0.019,
     maxHealth: 52,

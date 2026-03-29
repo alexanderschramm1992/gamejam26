@@ -101,6 +101,7 @@ const shouldSendInput = (nextInput: PlayerInput, nowMs: number): boolean => {
   return (
     nextInput.shoot !== lastSentInput.shoot ||
     nextInput.interact !== lastSentInput.interact ||
+    nextInput.handbrake !== lastSentInput.handbrake ||
     nextInput.throttle !== lastSentInput.throttle ||
     nextInput.steer !== lastSentInput.steer
   );
@@ -301,6 +302,7 @@ adminMenu.onCloseRequest(() => {
 vehicleMenu.onConfirm(({ vehicle, playerName }: VehicleSelectionConfirmation) => {
   vehicleSelectionConfirmed = true;
   vehicleMenu.setOpen(false);
+  audio.startGameMusic();
   updateInputEnabled();
   socket.emit("setPlayerName", playerName);
   void setLocalPlayerCarAsset(vehicle.assetPath);

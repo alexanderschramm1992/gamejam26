@@ -40,6 +40,7 @@ const neutralInput: PlayerInput = {
   steer: 0,
   shoot: false,
   interact: false,
+  handbrake: false,
   aimAngle: 0,
   seq: 0
 };
@@ -232,7 +233,8 @@ export class GameServer {
         lowBattery: player.battery <= GAME_CONFIG.battery.lowBatteryThreshold,
         crippledBattery: player.battery <= GAME_CONFIG.battery.crippledThreshold,
         offRoad: !surface.onRoad,
-        boosted: now < player.boostedUntil
+        boosted: now < player.boostedUntil,
+        isPlayerHandbrake: input.handbrake
       });
       const resourceResult = updateVehicleResources(player, input, surface, dt, now, {
         chargeMultiplier: this.adminSettings.chargeRateMultiplier
@@ -646,13 +648,16 @@ export class GameServer {
   }
 
   private getEnemySpawnInterval(): number {
-    return Math.max(0.35, GAME_CONFIG.enemies.spawnInterval / Math.max(0.2, this.adminSettings.enemySpawnRateMultiplier));
+    return Math.max(
+      GAME_CONFIG.enemies.minSpawnInterval,
+      GAME_CONFIG.enemies.spawnInterval / Math.max(0.2, this.adminSettings.enemySpawnRateMultiplier)
+    );
   }
 
   private getDesiredEnemyCount(playerCount: number, activeMission: boolean): number {
     const baseCount = desiredEnemyCount(playerCount, this.team.danger, activeMission);
     const scaledCount = baseCount * this.adminSettings.enemyCountMultiplier;
-    return Math.min(24, Math.max(1, Math.ceil(scaledCount)));
+    return Math.min(GAME_CONFIG.enemies.maxActiveCount, Math.max(1, Math.ceil(scaledCount)));
   }
 
   private getPlayerTuning(): VehicleTuning {
