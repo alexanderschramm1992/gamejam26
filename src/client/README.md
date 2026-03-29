@@ -8,9 +8,11 @@
 - Canvas-Rendering der Spielwelt.
 - HUD, Minimap und Dispatch-Feed.
 - Eingabeerfassung und synthetisches Audio-Feedback.
+- Reifenspuren-Rendering (TireTrackRenderer.ts).
 
 ## Darf geaendert werden
 - Clientseitige Darstellung, Interpolation, UX und Eingabeverarbeitung.
+- Visuelle Effekte wie Reifenspuren.
 
 ## Nicht stillschweigend aendern
 - Autoritative Spielregeln nicht in den Client verlagern.

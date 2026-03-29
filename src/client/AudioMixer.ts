@@ -7,7 +7,15 @@ export class AudioMixer {
   private engineGain: GainNode | null = null;
   private engineWhine: OscillatorNode | null = null;
   private engineWhineGain: GainNode | null = null;
-  private engineCurrentFrequency = 60;
+
+  // Sound configuration - easily hand-tune these values
+  public static readonly ENGINE_IDLE_FREQ = 20;      // Hz at rest
+  public static readonly ENGINE_MAX_FREQ = 100;      // Hz at full speed
+  public static readonly ENGINE_WHINE_MULTIPLIER = 2.0;
+  public static readonly ENGINE_MAX_GAIN_MAIN = 0.4;
+  public static readonly ENGINE_MAX_GAIN_WHINE = 0.20;
+  public static readonly ENGINE_RAMP_SMOOTHNESS = 0.12;
+  public static readonly ENGINE_VOLUME_SMOOTHNESS = 0.1;
 
   constructor() {
     const enable = () => {
@@ -32,24 +40,24 @@ export class AudioMixer {
       return;
     }
 
-    // Main electric motor sound - smooth sine wave with a higher pitch
+    // Main electric motor sound - smooth sine wave
     this.engineOscillator = this.context.createOscillator();
     this.engineGain = this.context.createGain();
 
     this.engineOscillator.type = "sine";
-    this.engineOscillator.frequency.value = this.engineCurrentFrequency;
+    this.engineOscillator.frequency.value = AudioMixer.ENGINE_IDLE_FREQ;
     this.engineGain.gain.value = 0;
 
     this.engineOscillator.connect(this.engineGain);
     this.engineGain.connect(this.context.destination);
     this.engineOscillator.start();
 
-    // Electric motor whine - higher frequency sine wave that adds characteristic EV sound
+    // Electric motor whine - higher frequency sine wave
     this.engineWhine = this.context.createOscillator();
     this.engineWhineGain = this.context.createGain();
 
     this.engineWhine.type = "sine";
-    this.engineWhine.frequency.value = this.engineCurrentFrequency * 2.0; // Double frequency for whine
+    this.engineWhine.frequency.value = AudioMixer.ENGINE_IDLE_FREQ * AudioMixer.ENGINE_WHINE_MULTIPLIER;
     this.engineWhineGain.gain.value = 0;
 
     this.engineWhine.connect(this.engineWhineGain);
@@ -62,34 +70,29 @@ export class AudioMixer {
       return;
     }
 
-    // Map speed to frequency: idle at ~80Hz, max at ~350Hz (electric motor pitch range)
     const speedRatio = Math.abs(speed) / Math.max(1, maxSpeed);
-    const targetFrequency = 80 + speedRatio * 270; // 80-350Hz range (typical EV motor range)
+    const targetFrequency = AudioMixer.ENGINE_IDLE_FREQ + speedRatio * (AudioMixer.ENGINE_MAX_FREQ - AudioMixer.ENGINE_IDLE_FREQ);
+    const whineFrequency = targetFrequency * AudioMixer.ENGINE_WHINE_MULTIPLIER;
 
-    // Smooth frequency transition
     const now = this.context.currentTime;
-    this.engineOscillator.frequency.setTargetAtTime(targetFrequency, now, 0.06);
-    this.engineWhine.frequency.setTargetAtTime(targetFrequency * 2.0, now, 0.06);
+    this.engineOscillator.frequency.setTargetAtTime(targetFrequency, now, AudioMixer.ENGINE_RAMP_SMOOTHNESS);
+    this.engineWhine.frequency.setTargetAtTime(whineFrequency, now, AudioMixer.ENGINE_RAMP_SMOOTHNESS);
 
-    // Volume: main motor 0-12%, whine 0-5% (electric cars have that characteristic high-pitched whine)
-    const targetGainMain = speedRatio * 0.12;
-    const targetGainWhine = speedRatio * 0.05;
-    this.engineGain.gain.setTargetAtTime(targetGainMain, now, 0.1);
-    this.engineWhineGain.gain.setTargetAtTime(targetGainWhine, now, 0.1);
-
-    this.engineCurrentFrequency = targetFrequency;
+    const targetGainMain = speedRatio * AudioMixer.ENGINE_MAX_GAIN_MAIN;
+    const targetGainWhine = speedRatio * AudioMixer.ENGINE_MAX_GAIN_WHINE;
+    this.engineGain.gain.setTargetAtTime(targetGainMain, now, AudioMixer.ENGINE_VOLUME_SMOOTHNESS);
+    this.engineWhineGain.gain.setTargetAtTime(targetGainWhine, now, AudioMixer.ENGINE_VOLUME_SMOOTHNESS);
   }
 
   public stopEngineSound(): void {
-    if (!this.engineOscillator || !this.engineGain || !this.context) {
+    if (!this.engineOscillator || !this.engineGain || !this.engineWhineGain || !this.context) {
       return;
     }
 
     const now = this.context.currentTime;
-    this.engineGain.gain.setTargetAtTime(0, now, 0.1);
-    if (this.engineWhineGain) {
-      this.engineWhineGain.gain.setTargetAtTime(0, now, 0.1);
-    }
+    this.engineGain.gain.setTargetAtTime(0, now, AudioMixer.ENGINE_VOLUME_SMOOTHNESS);
+    this.engineWhineGain.gain.setTargetAtTime(0, now, AudioMixer.ENGINE_VOLUME_SMOOTHNESS);
+    
     setTimeout(() => {
       if (this.engineOscillator) {
         this.engineOscillator.stop();

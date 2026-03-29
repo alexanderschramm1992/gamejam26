@@ -18,7 +18,7 @@ export class GameOverOverlay {
 
   constructor() {
     this.zonk.preload = "auto";
-    this.zonk.volume = 0.92;
+    this.zonk.volume = 0.2; // adjusted to match overall game volume
 
     this.root = document.createElement("div");
     this.root.className = "gameover-backdrop";

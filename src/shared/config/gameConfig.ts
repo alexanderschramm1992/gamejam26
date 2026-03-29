@@ -82,6 +82,11 @@ export const GAME_CONFIG = {
     projectileLife: 1.05,
     impactImpulse: 120
   },
+  tireSlip: {
+    thresholdDegrees: 10, // Winkel-Schwellenwert ab dem Reifenspuren sichtbar sind
+    durationMs: 500, // Wie lange Reifenspuren sichtbar bleiben
+    trailSpacing: 12 // Abstand zwischen einzelnen Spur-Markierungen in Pixeln
+  },
   mission: {
     baseReward: 150,
     baseTimeLimit: 70,
