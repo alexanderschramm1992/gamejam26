@@ -259,15 +259,6 @@ export const drawTiledRoads = (ctx: CanvasRenderingContext2D): void => {
 
   for (let row = 0; row < rows; row += 1) {
     for (let col = 0; col < cols; col += 1) {
-      const backgroundVariant = chooseTileVariant([], col, row);
-      const backgroundTile = backgroundVariant?.tileName ?? "none";
-      const backgroundRotation = backgroundVariant?.rotation ?? 0;
-      drawRoadTile(ctx, col, row, backgroundTile, backgroundRotation);
-    }
-  }
-
-  for (let row = 0; row < rows; row += 1) {
-    for (let col = 0; col < cols; col += 1) {
       if (!hasRoadAt(roadCells, col, row)) {
         continue;
       }

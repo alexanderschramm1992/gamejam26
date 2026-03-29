@@ -1,121 +1,149 @@
-import type { CirclePoi, NavigationNode, Vec2, WorldMapData } from "../model/types";
+import type { CirclePoi, NavigationNode, RectZone, Vec2, WorldMapData } from "../model/types";
 import { distance } from "../utils/math";
 
-// Grid-based map using 256px tiles
-// Tile size: 256x256 (asset size)
-// Street widths: multiples of 256
-// Street lengths: multiples of 256
-
-// Grid constants (in tiles)
 const TILE_SIZE = 256;
-const MAP_WIDTH_TILES = 13; // 13 * 256 = 3328px
-const MAP_HEIGHT_TILES = 11; // 11 * 256 = 2816px
+const MAP_WIDTH_TILES = 13;
+const MAP_HEIGHT_TILES = 11;
+
+const tile = (units: number): number => units * TILE_SIZE;
+
+const zone = (id: string, x: number, y: number, width: number, height: number): RectZone => ({
+  id,
+  x,
+  y,
+  width,
+  height
+});
+
+const tileZone = (id: string, col: number, row: number, width: number, height: number): RectZone =>
+  zone(id, tile(col), tile(row), tile(width), tile(height));
+
+const point = (col: number, row: number, offsetX = 0.5, offsetY = 0.5): Vec2 => ({
+  x: tile(col + offsetX),
+  y: tile(row + offsetY)
+});
+
+const circlePoi = (id: string, label: string, col: number, row: number, radius: number): CirclePoi => ({
+  id,
+  label,
+  x: tile(col + 0.5),
+  y: tile(row + 0.5),
+  radius
+});
 
 const navigationNodes: NavigationNode[] = [
-  // Row 1 (North)
-  { id: "n1", x: TILE_SIZE * 1.5, y: TILE_SIZE * 1.5, neighbors: ["n2", "n5"] },
-  { id: "n2", x: TILE_SIZE * 4.5, y: TILE_SIZE * 1.5, neighbors: ["n1", "n3", "n6"] },
-  { id: "n3", x: TILE_SIZE * 7.5, y: TILE_SIZE * 1.5, neighbors: ["n2", "n4", "n7"] },
-  { id: "n4", x: TILE_SIZE * 10.5, y: TILE_SIZE * 1.5, neighbors: ["n3", "n8"] },
-  // Row 2 (Central)
-  { id: "n5", x: TILE_SIZE * 1.5, y: TILE_SIZE * 5.5, neighbors: ["n1", "n6", "n9"] },
-  { id: "n6", x: TILE_SIZE * 4.5, y: TILE_SIZE * 5.5, neighbors: ["n2", "n5", "n7", "n10"] },
-  { id: "n7", x: TILE_SIZE * 7.5, y: TILE_SIZE * 5.5, neighbors: ["n3", "n6", "n8", "n11"] },
-  { id: "n8", x: TILE_SIZE * 10.5, y: TILE_SIZE * 5.5, neighbors: ["n4", "n7", "n12"] },
-  // Row 3 (South)
-  { id: "n9", x: TILE_SIZE * 1.5, y: TILE_SIZE * 9.5, neighbors: ["n5", "n10"] },
-  { id: "n10", x: TILE_SIZE * 4.5, y: TILE_SIZE * 9.5, neighbors: ["n6", "n9", "n11"] },
-  { id: "n11", x: TILE_SIZE * 7.5, y: TILE_SIZE * 9.5, neighbors: ["n7", "n10", "n12"] },
-  { id: "n12", x: TILE_SIZE * 10.5, y: TILE_SIZE * 9.5, neighbors: ["n8", "n11"] }
+  { id: "west-gate", x: tile(1.5), y: tile(1.5), neighbors: ["market-north", "old-town-west"] },
+  { id: "market-north", x: tile(4.5), y: tile(1.5), neighbors: ["west-gate", "east-north", "old-town-market"] },
+  { id: "east-north", x: tile(9.5), y: tile(1.5), neighbors: ["market-north", "east-slip-junction", "east-bridge"] },
+  { id: "riverside-deadend", x: tile(6.5), y: tile(2.5), neighbors: ["riverside-crossing"] },
+  { id: "east-slip-junction", x: tile(9.5), y: tile(3.5), neighbors: ["east-north", "harbor-slip", "east-bridge"] },
+  { id: "harbor-slip", x: tile(11.5), y: tile(3.5), neighbors: ["east-slip-junction", "harbor-mid"] },
+  { id: "old-town-west", x: tile(1.5), y: tile(4.5), neighbors: ["west-gate", "old-town-market", "south-west"] },
+  { id: "old-town-market", x: tile(4.5), y: tile(4.5), neighbors: ["market-north", "old-town-west", "riverside-crossing", "bridge-west"] },
+  { id: "riverside-crossing", x: tile(6.5), y: tile(4.5), neighbors: ["riverside-deadend", "old-town-market", "bridge-west", "river-south"] },
+  { id: "bridge-west", x: tile(4.5), y: tile(5.5), neighbors: ["old-town-market", "riverside-crossing", "east-bridge", "market-south"] },
+  { id: "east-bridge", x: tile(9.5), y: tile(5.5), neighbors: ["east-north", "east-slip-junction", "bridge-west", "harbor-mid", "east-south"] },
+  { id: "harbor-mid", x: tile(11.5), y: tile(5.5), neighbors: ["harbor-slip", "east-bridge", "harbor-south"] },
+  { id: "south-west", x: tile(1.5), y: tile(8.5), neighbors: ["old-town-west", "market-south", "dispatch-lane"] },
+  { id: "market-south", x: tile(4.5), y: tile(8.5), neighbors: ["south-west", "river-south", "bridge-west", "dispatch-east", "east-south"] },
+  { id: "river-south", x: tile(6.5), y: tile(8.5), neighbors: ["riverside-crossing", "market-south", "east-south"] },
+  { id: "east-south", x: tile(9.5), y: tile(8.5), neighbors: ["east-bridge", "market-south", "river-south", "harbor-south", "east-tail"] },
+  { id: "harbor-south", x: tile(11.5), y: tile(8.5), neighbors: ["harbor-mid", "east-south", "harbor-tail"] },
+  { id: "dispatch-lane", x: tile(1.5), y: tile(9.5), neighbors: ["south-west", "dispatch-east"] },
+  { id: "dispatch-east", x: tile(4.5), y: tile(9.5), neighbors: ["dispatch-lane", "market-south"] },
+  { id: "east-tail", x: tile(9.5), y: tile(9.5), neighbors: ["east-south", "harbor-tail"] },
+  { id: "harbor-tail", x: tile(11.5), y: tile(9.5), neighbors: ["harbor-south", "east-tail"] }
+];
+
+const roads: RectZone[] = [
+  tileZone("west-artery", 1, 0, 1, 11),
+  tileZone("market-street", 4, 0, 1, 11),
+  tileZone("riverside-drive", 6, 2, 1, 8),
+  tileZone("east-avenue", 9, 0, 1, 10),
+  tileZone("harbor-lane", 11, 3, 1, 8),
+  tileZone("north-bridge-boulevard", 0, 1, 13, 1),
+  tileZone("old-town-avenue", 0, 4, 7, 1),
+  tileZone("central-bridge", 4, 5, 9, 1),
+  tileZone("east-slip-road", 9, 3, 4, 1),
+  tileZone("south-bypass", 0, 8, 13, 1),
+  tileZone("dispatch-lane", 0, 9, 6, 1)
+];
+
+const parks: RectZone[] = [
+  zone("founders-park", 550, 1330, 420, 650),
+  zone("east-garden", 2580, 1560, 180, 440)
+];
+
+const water: RectZone[] = [
+  tileZone("canal", 7, 0, 2, 11)
+];
+
+const bridges: RectZone[] = [
+  tileZone("north-bridge", 7, 1, 2, 1),
+  tileZone("market-bridge", 7, 5, 2, 1),
+  tileZone("south-bridge", 7, 8, 2, 1)
+];
+
+const buildings: RectZone[] = [
+  zone("b1", 540, 540, 180, 200),
+  zone("b2", 760, 560, 190, 170),
+  zone("b3", 560, 790, 155, 170),
+  zone("b4", 760, 780, 195, 205),
+  zone("b5", 1310, 540, 180, 200),
+  zone("b6", 1310, 780, 190, 210),
+  zone("b7", 1305, 1560, 185, 170),
+  zone("b8", 1305, 1770, 195, 220),
+  zone("b9", 40, 540, 170, 250),
+  zone("b10", 50, 820, 150, 150),
+  zone("b11", 35, 1560, 185, 420),
+  zone("b12", 40, 2600, 170, 170),
+  zone("b13", 2585, 540, 170, 180),
+  zone("b14", 2580, 1060, 180, 170),
+  zone("b15", 3095, 540, 180, 180),
+  zone("b16", 3090, 1060, 190, 170),
+  zone("b17", 3090, 1580, 185, 420),
+  zone("b18", 2580, 2600, 180, 170),
+  zone("b19", 3090, 2600, 180, 170)
 ];
 
 export const CITY_MAP: WorldMapData = {
-  width: TILE_SIZE * MAP_WIDTH_TILES,  // 3328px
-  height: TILE_SIZE * MAP_HEIGHT_TILES,  // 2816px
-  roads: [
-    // Vertical roads (width = 1 tile = 256px)
-    { id: "road-west", x: TILE_SIZE, y: 0, width: TILE_SIZE, height: TILE_SIZE * 11 },
-    { id: "road-central", x: TILE_SIZE * 4, y: 0, width: TILE_SIZE, height: TILE_SIZE * 11 },
-    { id: "road-east", x: TILE_SIZE * 7, y: 0, width: TILE_SIZE, height: TILE_SIZE * 11 },
-    { id: "road-far-east", x: TILE_SIZE * 10, y: 0, width: TILE_SIZE, height: TILE_SIZE * 11 },
-    // Horizontal roads (height = 1 tile = 256px)
-    { id: "road-north", x: 0, y: TILE_SIZE, width: TILE_SIZE * 13, height: TILE_SIZE },
-    { id: "road-mid", x: 0, y: TILE_SIZE * 5, width: TILE_SIZE * 13, height: TILE_SIZE },
-    { id: "road-south", x: 0, y: TILE_SIZE * 9, width: TILE_SIZE * 13, height: TILE_SIZE }
-  ],
-  buildings: [
-    // BLOCK 1: x: 512-1024 (between road-west and road-central)
-    // North section (y: 520-1270)
-    { id: "b1", x: 530, y: 540, width: 180, height: 180 },
-    { id: "b2", x: 530, y: 750, width: 180, height: 160 },
-    { id: "b3", x: 530, y: 950, width: 160, height: 180 },
-    { id: "b4", x: 750, y: 540, width: 200, height: 200 },
-    { id: "b5", x: 750, y: 780, width: 180, height: 190 },
-    // South section (y: 1544-2294)
-    { id: "b6", x: 530, y: 1560, width: 180, height: 180 },
-    { id: "b7", x: 530, y: 1800, width: 200, height: 160 },
-    { id: "b8", x: 530, y: 2000, width: 170, height: 170 },
-    { id: "b9", x: 750, y: 1560, width: 190, height: 190 },
-    { id: "b10", x: 750, y: 1800, width: 180, height: 200 },
-
-    // BLOCK 2: x: 1280-1792 (between road-central and road-east)
-    // North section (y: 520-1270)
-    { id: "b11", x: 1300, y: 540, width: 200, height: 180 },
-    { id: "b12", x: 1300, y: 750, width: 180, height: 190 },
-    { id: "b13", x: 1300, y: 970, width: 160, height: 180 },
-    { id: "b14", x: 1520, y: 540, width: 180, height: 200 },
-    { id: "b15", x: 1520, y: 780, width: 190, height: 170 },
-    // South section (y: 1544-2294)
-    { id: "b16", x: 1300, y: 1560, width: 180, height: 180 },
-    { id: "b17", x: 1300, y: 1800, width: 190, height: 200 },
-    { id: "b18", x: 1300, y: 2040, width: 200, height: 160 },
-    { id: "b19", x: 1520, y: 1560, width: 170, height: 190 },
-    { id: "b20", x: 1520, y: 1800, width: 180, height: 180 },
-
-    // BLOCK 3: x: 2048-2560 (between road-east and road-far-east)
-    // North section (y: 520-1270)
-    { id: "b21", x: 2070, y: 540, width: 190, height: 190 },
-    { id: "b22", x: 2070, y: 770, width: 180, height: 200 },
-    { id: "b23", x: 2070, y: 1010, width: 200, height: 170 },
-    { id: "b24", x: 2290, y: 540, width: 180, height: 180 },
-    { id: "b25", x: 2290, y: 760, width: 200, height: 190 },
-    // South section (y: 1544-2294)
-    { id: "b26", x: 2070, y: 1560, width: 200, height: 180 },
-    { id: "b27", x: 2070, y: 1800, width: 180, height: 190 },
-    { id: "b28", x: 2070, y: 2020, width: 190, height: 170 },
-    { id: "b29", x: 2290, y: 1560, width: 180, height: 200 },
-    { id: "b30", x: 2290, y: 1800, width: 190, height: 180 }
-  ],
+  width: TILE_SIZE * MAP_WIDTH_TILES,
+  height: TILE_SIZE * MAP_HEIGHT_TILES,
+  roads,
+  buildings,
+  parks,
+  water,
+  bridges,
   chargeStations: [
-    { id: "charge-west", label: "West Charge", x: TILE_SIZE * 2.5, y: TILE_SIZE * 6.5, radius: 96 },
-    { id: "charge-central", label: "Metro Charge", x: TILE_SIZE * 5.5, y: TILE_SIZE * 3.5, radius: 96 },
-    { id: "charge-east", label: "Arcade Charge", x: TILE_SIZE * 8.5, y: TILE_SIZE * 6.5, radius: 96 }
+    circlePoi("charge-market", "Market Charge", 4, 5, 96),
+    circlePoi("charge-east", "Bridge Charge", 9, 5, 96),
+    circlePoi("charge-harbor", "Harbor Charge", 10, 8, 96)
   ],
   boostLanes: [
-    { id: "boost-1", x: TILE_SIZE * 4 + 30, y: TILE_SIZE * 2 + 20, width: 196, height: 768, heading: Math.PI / 2 },
-    { id: "boost-2", x: TILE_SIZE * 7 + 30, y: TILE_SIZE * 6 + 20, width: 196, height: 768, heading: Math.PI / 2 },
-    { id: "boost-3", x: TILE_SIZE * 4 + 20, y: TILE_SIZE * 8 + 20, width: 768, height: 196, heading: 0 }
+    { id: "boost-market", x: tile(4) + 30, y: tile(2) + 20, width: 196, height: 720, heading: Math.PI / 2 },
+    { id: "boost-bypass", x: tile(5) + 20, y: tile(8) + 30, width: 980, height: 196, heading: 0 },
+    { id: "boost-east", x: tile(9) + 30, y: tile(5) + 20, width: 196, height: 700, heading: Math.PI / 2 }
   ],
   dispatchPoints: [
-    { id: "dispatch-central", label: "Sushi Hub", x: TILE_SIZE * 1.5, y: TILE_SIZE * 9.5, radius: 112 }
+    circlePoi("dispatch-central", "Founders Dispatch", 1, 9, 112)
   ],
   deliveryPoints: [
-    { id: "delivery-docks", label: "Old Port Tower", x: TILE_SIZE * 1.5, y: TILE_SIZE * 1.5, radius: 110 },
-    { id: "delivery-harbor", label: "Harbor Plaza", x: TILE_SIZE * 10.5, y: TILE_SIZE * 1.5, radius: 110 },
-    { id: "delivery-arcade", label: "Arcade Hub", x: TILE_SIZE * 7.5, y: TILE_SIZE * 5.5, radius: 110 },
-    { id: "delivery-solar", label: "Solar Market", x: TILE_SIZE * 10.5, y: TILE_SIZE * 9.5, radius: 110 }
+    circlePoi("delivery-old-town", "Old Town Corner", 1, 1, 110),
+    circlePoi("delivery-parkside", "Parkside Exchange", 4, 8, 110),
+    circlePoi("delivery-east-garden", "East Garden", 9, 8, 110),
+    circlePoi("delivery-harbor", "Harbor Plaza", 11, 3, 110)
   ],
   enemyHotspots: [
-    { id: "hotspot-north", label: "Diesel Nest", x: TILE_SIZE * 7.5, y: TILE_SIZE * 1.5, radius: 120 },
-    { id: "hotspot-west", label: "Tunnel Pack", x: TILE_SIZE * 4.5, y: TILE_SIZE * 9.5, radius: 120 },
-    { id: "hotspot-east", label: "Refinery Pack", x: TILE_SIZE * 10.5, y: TILE_SIZE * 5.5, radius: 120 }
+    circlePoi("hotspot-riverside", "Canal Cutters", 6, 2, 120),
+    circlePoi("hotspot-east-tail", "Slip Road Crew", 9, 9, 120),
+    circlePoi("hotspot-harbor", "Harbor Pack", 11, 9, 120)
   ],
   navigationNodes,
   playerSpawns: [
-    { x: TILE_SIZE * 1.5 - 40, y: TILE_SIZE * 9.5 - 40 },
-    { x: TILE_SIZE * 1.5 + 40, y: TILE_SIZE * 9.5 - 40 },
-    { x: TILE_SIZE * 1.5 - 40, y: TILE_SIZE * 9.5 + 40 },
-    { x: TILE_SIZE * 1.5 + 40, y: TILE_SIZE * 9.5 + 40 }
+    point(1, 9, 0.34, 0.34),
+    point(1, 9, 0.66, 0.34),
+    point(1, 9, 0.34, 0.66),
+    point(1, 9, 0.66, 0.66)
   ]
 };
 

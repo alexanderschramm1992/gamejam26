@@ -178,6 +178,9 @@ export interface WorldMapData {
   height: number;
   roads: RectZone[];
   buildings: RectZone[];
+  parks: RectZone[];
+  water: RectZone[];
+  bridges: RectZone[];
   chargeStations: CirclePoi[];
   boostLanes: BoostLane[];
   dispatchPoints: CirclePoi[];

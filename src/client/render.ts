@@ -101,6 +101,29 @@ const getBuildingImage = (building: RectZone): HTMLImageElement | null => {
   return buildingImages[index];
 };
 
+const drawBuildingImage = (
+  ctx: CanvasRenderingContext2D,
+  building: RectZone,
+  buildingImage: HTMLImageElement
+): void => {
+  const imageAspectRatio = buildingImage.width / buildingImage.height;
+  const targetAspectRatio = building.width / building.height;
+
+  let drawWidth = building.width;
+  let drawHeight = building.height;
+
+  if (imageAspectRatio > targetAspectRatio) {
+    drawHeight = building.width / imageAspectRatio;
+  } else {
+    drawWidth = building.height * imageAspectRatio;
+  }
+
+  const drawX = building.x + (building.width - drawWidth) / 2;
+  const drawY = building.y + building.height - drawHeight;
+
+  ctx.drawImage(buildingImage, drawX, drawY, drawWidth, drawHeight);
+};
+
 export interface VisualCache {
   players: Map<string, VisualEntity>;
   enemies: Map<string, VisualEntity>;
@@ -246,16 +269,80 @@ const drawDrainBeam = (
 };
 
 const drawWorldGeometry = (ctx: CanvasRenderingContext2D): void => {
-  // Draw tiled roads instead of geometric shapes
+  ctx.fillStyle = "#132229";
+  ctx.fillRect(0, 0, CITY_MAP.width, CITY_MAP.height);
+
+  for (const park of CITY_MAP.parks) {
+    ctx.save();
+    ctx.fillStyle = "#2a4a2d";
+    ctx.fillRect(park.x, park.y, park.width, park.height);
+    ctx.strokeStyle = "rgba(198, 255, 158, 0.18)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(park.x + 6, park.y + 6, park.width - 12, park.height - 12);
+
+    const spacing = 88;
+    for (let x = park.x + 36; x < park.x + park.width - 24; x += spacing) {
+      for (let y = park.y + 36; y < park.y + park.height - 24; y += spacing) {
+        ctx.fillStyle = "rgba(79, 127, 65, 0.85)";
+        ctx.beginPath();
+        ctx.arc(x, y, 15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "rgba(24, 48, 24, 0.5)";
+        ctx.fillRect(x - 2, y + 10, 4, 12);
+      }
+    }
+    ctx.restore();
+  }
+
+  for (const waterZone of CITY_MAP.water) {
+    ctx.save();
+    ctx.fillStyle = "#184f67";
+    ctx.fillRect(waterZone.x, waterZone.y, waterZone.width, waterZone.height);
+    ctx.strokeStyle = "rgba(124, 214, 255, 0.22)";
+    ctx.lineWidth = 3;
+    for (let y = waterZone.y + 24; y < waterZone.y + waterZone.height; y += 72) {
+      ctx.beginPath();
+      ctx.moveTo(waterZone.x + 20, y);
+      ctx.lineTo(waterZone.x + waterZone.width - 20, y + 10);
+      ctx.stroke();
+    }
+     ctx.restore();
+   }
+
   drawTiledRoads(ctx);
 
-  // Draw buildings with texture assets while preserving collision rectangles
+  for (const bridge of CITY_MAP.bridges) {
+    ctx.save();
+    ctx.strokeStyle = "rgba(232, 238, 244, 0.32)";
+    ctx.lineWidth = 5;
+    if (bridge.width >= bridge.height) {
+      ctx.beginPath();
+      ctx.moveTo(bridge.x, bridge.y + 18);
+      ctx.lineTo(bridge.x + bridge.width, bridge.y + 18);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(bridge.x, bridge.y + bridge.height - 18);
+      ctx.lineTo(bridge.x + bridge.width, bridge.y + bridge.height - 18);
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(bridge.x + 18, bridge.y);
+      ctx.lineTo(bridge.x + 18, bridge.y + bridge.height);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(bridge.x + bridge.width - 18, bridge.y);
+      ctx.lineTo(bridge.x + bridge.width - 18, bridge.y + bridge.height);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   for (const building of CITY_MAP.buildings) {
     const buildingImage = getBuildingImage(building);
     ctx.shadowBlur = 12;
     ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
     if (buildingImage) {
-      ctx.drawImage(buildingImage, building.x, building.y, building.width, building.height);
+      drawBuildingImage(ctx, building, buildingImage);
     } else {
       ctx.fillStyle = "#0a131b";
       ctx.fillRect(building.x, building.y, building.width, building.height);
