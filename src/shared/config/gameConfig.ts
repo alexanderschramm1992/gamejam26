@@ -7,7 +7,7 @@ export interface VehicleTuning {
   turnSpeed: number;
   maxForwardSpeed: number;
   maxReverseSpeed: number;
-  friction: number; // Wert 0-1: wie viel Geschwindigkeit pro Sekunde erhalten bleibt (linear decay)
+  friction: number;
   radius: number;
   collisionDamage: number;
 }
@@ -33,10 +33,10 @@ export const GAME_CONFIG = {
     acceleration: 500,
     reverseAcceleration: 170,
     brakeStrength: 3.8,
-    turnSpeed: 3.5, // Lenkgeschwindigkeit - höher = schneller lenken/engere Kurven
+    turnSpeed: 3, // Lenkgeschwindigkeit - höher = schneller lenken/engere Kurven
     maxForwardSpeed: 460,
     maxReverseSpeed: 160,
-    friction: 0.93,
+    friction: 0.8, // Wert 0-1: wie viel Geschwindigkeit pro Sekunde erhalten bleibt (linear decay)
     radius: 22,
     collisionDamage: 0.018,
     maxHealth: 120,
@@ -69,13 +69,13 @@ export const GAME_CONFIG = {
     lowBatteryFactor: 0.72,
     offRoadFactor: 0.7,
     brakeStrength: 8,
-    brakeDragStrength: 0.015,
-    brakeDragMin: 0.5,
-    brakeDragMax: 0.96,
-    minimumTurningVelocity: 8, // Mindestgeschwindigkeit zum Lenken - niedriger = auch langsamer noch lenken können
-    // Drift-Parameter für realistische Fahrtdynamik
-    driftResponse: 0.3, // Wie schnell die Fahrtrichtung dem Lenkwinkel folgt (0-1) - höher = direktere Lenkreaktion
-    lateralGrip: 0.6, // Seitenhaftung in Kurven - höher = besserer Grip beim Lenken (0-1)
+    minimumTurningVelocity: 2, // Mindestgeschwindigkeit zum Lenken - niedriger = auch langsamer noch lenken können
+    // Drift-Dämpfung für realistische Fahrtdynamik (0-1)
+    // Steuert wie schnell die Fahrtrichtung (vx/vy) dem Lenkwinkel folgt:
+    // - Höher (z.B. 0.3-0.5): Fahrzeug folgt dem Lenkwinkel direkt und präzise (arcade-like, hochgradig steuerbar)
+    // - Mittler (z.B. 0.15-0.25): Balanciertes Verhalten mit natürlichem Drift in Kurven
+    // - Niedriger (z.B. 0.05-0.12): Fahrzeug rutscht stark, verzögert Lenkreaktion (simulativ, schwerer zu fahren)
+    driftDamping: 0.15,
     angularVelocityMax: 4.0 // Max Rotationsgeschwindigkeit pro Sekunde - höher = schnellere Drehbewegungen
   },
   combat: {
@@ -94,8 +94,11 @@ export const GAME_CONFIG = {
     cooldown: 5
   },
   enemies: {
-    spawnInterval: 2.5,
-    maxBaseCount: 5
+    spawnInterval: 2.5,        // Sekunden zwischen Gegner-Spawns
+    minSpawnInterval: 0.35,    // Minimales Spawn-Intervall (hardlimit)
+    maxBaseCount: 5,           // Basis-Gegneranzahl (wird mit Spieleranzahl + Danger multipliziert)
+    maxActiveCount: 0,//12,        // Maximale gleichzeitig aktive Gegner
+    missionPressure: 2         // Zusätzliche Gegner wenn Mission aktiv
   },
   ui: {
     feedEventCount: 6

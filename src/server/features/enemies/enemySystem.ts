@@ -381,6 +381,6 @@ export const updateEnemies = (
 };
 
 export const desiredEnemyCount = (playerCount: number, danger: number, activeMission: boolean): number => {
-  const missionPressure = activeMission ? 2 : 0;
-  return Math.min(12, GAME_CONFIG.enemies.maxBaseCount + playerCount + danger + missionPressure);
+  const missionPressure = activeMission ? GAME_CONFIG.enemies.missionPressure : 0;
+  return Math.min(GAME_CONFIG.enemies.maxActiveCount, GAME_CONFIG.enemies.maxBaseCount + playerCount + danger + missionPressure);
 };
