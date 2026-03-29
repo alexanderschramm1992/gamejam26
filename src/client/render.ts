@@ -1,3 +1,4 @@
+import { BUILDING_ASSETS, getBuildingAsset, getBuildingCollisionRect, getBuildingDrawRect } from "../shared/map/buildingAssets";
 import { CITY_MAP, findPoiById } from "../shared/map/cityMap";
 import type { EnemyState, GameSnapshot, PlayerState, ProjectileState, RectZone } from "../shared/model/types";
 import { clamp } from "../shared/utils/math";
@@ -67,38 +68,21 @@ export const setLocalPlayerCarAsset = async (src: string): Promise<void> => {
   localPlayerCarImage = await loadImage(src);
 };
 
-const BUILDING_ASSET_PATHS = [
-  "/assets/buildings/DQ-SF_city_building_medium_02.png",
-  "/assets/buildings/DQ-SF_city_building_medium_06.png",
-  "/assets/buildings/DQ-SF_city_building_medium_08.png",
-  "/assets/buildings/DQ-SF_city_building_small_02.png",
-  "/assets/buildings/DQ-SF_city_building_small_05.png",
-  "/assets/buildings/DQ-SF_city_building_small_06.png",
-  "/assets/buildings/DQ-SF_city_building_small_07.png",
-  "/assets/buildings/DQ-SF_city_building_small_12.png"
-];
-
-let buildingImages: HTMLImageElement[] = [];
-
-const hashString = (value: string): number => {
-  let hash = 0;
-  for (let i = 0; i < value.length; i += 1) {
-    hash = (hash * 31 + value.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash);
-};
+let buildingImages = new Map<string, HTMLImageElement>();
 
 export const loadBuildingAssets = async (): Promise<void> => {
-  buildingImages = await Promise.all(BUILDING_ASSET_PATHS.map(loadImage));
+  const images = await Promise.all(
+    BUILDING_ASSETS.map(async (asset) => [asset.id, await loadImage(asset.src)] as const)
+  );
+  buildingImages = new Map(images);
 };
 
 const getBuildingImage = (building: RectZone): HTMLImageElement | null => {
-  if (buildingImages.length === 0) {
+  if (buildingImages.size === 0) {
     return null;
   }
 
-  const index = hashString(building.id || `${building.x}-${building.y}`) % buildingImages.length;
-  return buildingImages[index];
+  return buildingImages.get(getBuildingAsset(building).id) ?? null;
 };
 
 const drawBuildingImage = (
@@ -106,22 +90,8 @@ const drawBuildingImage = (
   building: RectZone,
   buildingImage: HTMLImageElement
 ): void => {
-  const imageAspectRatio = buildingImage.width / buildingImage.height;
-  const targetAspectRatio = building.width / building.height;
-
-  let drawWidth = building.width;
-  let drawHeight = building.height;
-
-  if (imageAspectRatio > targetAspectRatio) {
-    drawHeight = building.width / imageAspectRatio;
-  } else {
-    drawWidth = building.height * imageAspectRatio;
-  }
-
-  const drawX = building.x + (building.width - drawWidth) / 2;
-  const drawY = building.y + building.height - drawHeight;
-
-  ctx.drawImage(buildingImage, drawX, drawY, drawWidth, drawHeight);
+  const drawRect = getBuildingDrawRect(building);
+  ctx.drawImage(buildingImage, drawRect.x, drawRect.y, drawRect.width, drawRect.height);
 };
 
 export interface VisualCache {
@@ -339,6 +309,7 @@ const drawWorldGeometry = (ctx: CanvasRenderingContext2D): void => {
 
   for (const building of CITY_MAP.buildings) {
     const buildingImage = getBuildingImage(building);
+    const collisionRect = getBuildingCollisionRect(building);
     ctx.shadowBlur = 12;
     ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
     if (buildingImage) {
@@ -348,7 +319,7 @@ const drawWorldGeometry = (ctx: CanvasRenderingContext2D): void => {
       ctx.fillRect(building.x, building.y, building.width, building.height);
     }
     ctx.strokeStyle = "rgba(88, 240, 255, 0.08)";
-    ctx.strokeRect(building.x, building.y, building.width, building.height);
+    ctx.strokeRect(collisionRect.x, collisionRect.y, collisionRect.width, collisionRect.height);
   }
 };
 

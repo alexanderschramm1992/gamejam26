@@ -1,3 +1,4 @@
+import { getBuildingCollisionRect } from "../../../shared/map/buildingAssets";
 import { CITY_MAP } from "../../../shared/map/cityMap";
 import type { BoostLane, CirclePoi } from "../../../shared/model/types";
 import { circleIntersectsRect, clamp, distance, pointInRect } from "../../../shared/utils/math";
@@ -49,7 +50,8 @@ export const resolveWorldCollision = (body: PhysicsBody): boolean => {
     collided = true;
   }
 
-  for (const building of CITY_MAP.buildings) {
+  for (const buildingZone of CITY_MAP.buildings) {
+    const building = getBuildingCollisionRect(buildingZone);
     if (!circleIntersectsRect(body, body.radius, building)) {
       continue;
     }

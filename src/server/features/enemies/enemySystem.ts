@@ -1,3 +1,4 @@
+import { getBuildingCollisionRect } from "../../../shared/map/buildingAssets";
 import { ENEMY_ARCHETYPES, GAME_CONFIG } from "../../../shared/config/gameConfig";
 import { CITY_MAP, findNearestNavigationNode, findPath } from "../../../shared/map/cityMap";
 import type { AdminSettings, EnemyKind, EnemyState, PlayerInput, PlayerState, ProjectileState, Vec2 } from "../../../shared/model/types";
@@ -55,12 +56,15 @@ const getLookaheadWaypoint = (waypoints: Vec2[], speed: number, fallback: Vec2):
 };
 
 const pointHitsExpandedBuilding = (point: Vec2, padding: number): boolean =>
-  CITY_MAP.buildings.some((building) =>
-    point.x >= building.x - padding &&
-    point.x <= building.x + building.width + padding &&
-    point.y >= building.y - padding &&
-    point.y <= building.y + building.height + padding
-  );
+  CITY_MAP.buildings.some((buildingZone) => {
+    const building = getBuildingCollisionRect(buildingZone);
+    return (
+      point.x >= building.x - padding &&
+      point.x <= building.x + building.width + padding &&
+      point.y >= building.y - padding &&
+      point.y <= building.y + building.height + padding
+    );
+  });
 
 const pathBlockedByBuildings = (from: Vec2, to: Vec2, padding: number): boolean => {
   const span = distance(from, to);
