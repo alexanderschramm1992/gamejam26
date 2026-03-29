@@ -36,7 +36,8 @@ export const GAME_CONFIG = {
     turnSpeed: 3, // Lenkgeschwindigkeit - höher = schneller lenken/engere Kurven
     maxForwardSpeed: 460,
     maxReverseSpeed: 160,
-    friction: 0.8, // Wert 0-1: wie viel Geschwindigkeit pro Sekunde erhalten bleibt (linear decay)
+    friction: 0.9, // Wert 0-1: wie viel Geschwindigkeit pro Sekunde erhalten bleibt (linear decay)
+    handbrakeFriction: 0.6, // Reibung mit aktivierter Handbremse - höher = weniger Rutsch
     radius: 22,
     collisionDamage: 0.018,
     maxHealth: 120,
@@ -76,6 +77,7 @@ export const GAME_CONFIG = {
     // - Mittler (z.B. 0.15-0.25): Balanciertes Verhalten mit natürlichem Drift in Kurven
     // - Niedriger (z.B. 0.05-0.12): Fahrzeug rutscht stark, verzögert Lenkreaktion (simulativ, schwerer zu fahren)
     driftDamping: 0.15,
+    handbrakeDriftDamping: 0.04, // Drift-Dämpfung mit aktivierter Handbremse - höher = weniger Drift
     angularVelocityMax: 4.0 // Max Rotationsgeschwindigkeit pro Sekunde - höher = schnellere Drehbewegungen
   },
   combat: {
@@ -97,7 +99,7 @@ export const GAME_CONFIG = {
     spawnInterval: 2.5,        // Sekunden zwischen Gegner-Spawns
     minSpawnInterval: 0.35,    // Minimales Spawn-Intervall (hardlimit)
     maxBaseCount: 5,           // Basis-Gegneranzahl (wird mit Spieleranzahl + Danger multipliziert)
-    maxActiveCount: 0,//12,        // Maximale gleichzeitig aktive Gegner
+    maxActiveCount: 12,        // Maximale gleichzeitig aktive Gegner
     missionPressure: 2         // Zusätzliche Gegner wenn Mission aktiv
   },
   ui: {

@@ -10,11 +10,12 @@ export interface VehicleStepOptions {
   crippledBattery: boolean;
   offRoad: boolean;
   boosted: boolean;
+  isPlayerHandbrake?: boolean; // Nur true wenn das der Spieler mit aktivierter Handbremse ist
 }
 
 export const stepVehicle = (
   vehicle: VehicleState,
-  { dt, input, tuning, lowBattery, crippledBattery, offRoad, boosted }: VehicleStepOptions
+  { dt, input, tuning, lowBattery, crippledBattery, offRoad, boosted, isPlayerHandbrake }: VehicleStepOptions
 ): void => {
   const lowBatteryFactor = crippledBattery
     ? GAME_CONFIG.vehiclePhysics.crippledBatteryFactor
@@ -32,10 +33,10 @@ export const stepVehicle = (
           : 0;
 
   // 1. Berechne Fahrtgeschwindigkeit mit Beschleunigung und Reibung
-  applyAcceleration(vehicle, limitedAccelerationInput, tuning, lowBatteryFactor, maxForward, maxReverse, dt);
+  applyAcceleration(vehicle, limitedAccelerationInput, tuning, lowBatteryFactor, maxForward, maxReverse, isPlayerHandbrake || false, dt);
 
   // 2. Lenkung und Drift-Dynamik - setzt vx/vy basierend auf driveVelocity
-  applyDynamics(vehicle, input.steer, tuning, dt);
+  applyDynamics(vehicle, input.steer, tuning, isPlayerHandbrake || false, dt);
 
   // 3. Position aktualisieren
   applyMovement(vehicle, dt);
@@ -48,13 +49,22 @@ const applyAcceleration = (
   lowBatteryFactor: number,
   maxForward: number,
   maxReverse: number,
+  handbrake: boolean,
   dt: number
 ): void => {
-  vehicle.driveVelocity += accelerationInput
-      * tuning.acceleration
-      * tuning.friction
-      * lowBatteryFactor
-      * dt;
+
+  const frictionFactor = handbrake ? GAME_CONFIG.player.handbrakeFriction : tuning.friction;
+
+  if (accelerationInput === 0) {
+    vehicle.driveVelocity *= frictionFactor;
+  } else {
+    vehicle.driveVelocity += accelerationInput
+        * tuning.acceleration
+        * frictionFactor
+        * lowBatteryFactor
+        * dt;
+  }
+
   // Begrenzte auf Max-Geschwindigkeiten
   vehicle.driveVelocity = clamp(vehicle.driveVelocity, -maxReverse, maxForward);
 };
@@ -63,6 +73,7 @@ const applyDynamics = (
   vehicle: VehicleState,
   steer: number,
   tuning: VehicleTuning,
+  handbrake: boolean,
   dt: number
 ): void => {
   // Aktualisiere Fahrzeugdrehung basierend auf Lenkung
@@ -72,8 +83,9 @@ const applyDynamics = (
 
   // Berechne Fahrtrichtung mit Drift-Effekt
   const targetDirection = fromAngle(vehicle.rotation);
-  const driftFactor = GAME_CONFIG.vehiclePhysics.driftDamping;
-  
+  // Verwende Handbremse-Drift-Dämpfung wenn aktiviert, sonst normale Drift-Dämpfung
+  const driftFactor = handbrake ? GAME_CONFIG.vehiclePhysics.handbrakeDriftDamping : GAME_CONFIG.vehiclePhysics.driftDamping;
+
   // Interpoliere zwischen aktueller und gewünschter Richtung für Drift
   vehicle.vx += (targetDirection.x * vehicle.driveVelocity - vehicle.vx) * driftFactor;
   vehicle.vy += (targetDirection.y * vehicle.driveVelocity - vehicle.vy) * driftFactor;

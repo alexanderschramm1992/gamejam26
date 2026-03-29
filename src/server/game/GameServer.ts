@@ -40,6 +40,7 @@ const neutralInput: PlayerInput = {
   steer: 0,
   shoot: false,
   interact: false,
+  handbrake: false,
   aimAngle: 0,
   seq: 0
 };
@@ -223,7 +224,8 @@ export class GameServer {
         lowBattery: player.battery <= GAME_CONFIG.battery.lowBatteryThreshold,
         crippledBattery: player.battery <= GAME_CONFIG.battery.crippledThreshold,
         offRoad: !surface.onRoad,
-        boosted: now < player.boostedUntil
+        boosted: now < player.boostedUntil,
+        isPlayerHandbrake: input.handbrake
       });
       const resourceResult = updateVehicleResources(player, input, surface, dt, now, {
         chargeMultiplier: this.adminSettings.chargeRateMultiplier

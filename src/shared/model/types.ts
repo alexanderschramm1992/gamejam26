@@ -35,6 +35,7 @@ export interface PlayerInput {
   steer: number;
   shoot: boolean;
   interact: boolean;
+  handbrake: boolean;
   aimAngle: number;
   seq: number;
 }
