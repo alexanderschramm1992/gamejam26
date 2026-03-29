@@ -29,6 +29,8 @@ const point = (col: number, row: number, offsetX = 0.5, offsetY = 0.5): Vec2 => 
   y: tile(row + offsetY)
 });
 
+type TileLayoutEntry = readonly [id: string, col: number, row: number, width: number, height: number];
+
 const circlePoi = (id: string, label: string, col: number, row: number, radius: number): CirclePoi => ({
   id,
   label,
@@ -52,20 +54,9 @@ const ROAD_LAYOUT = [
   ["terminal-way", 3, 20, 22, 1]
 ] as const;
 
-const WATER_LAYOUT = [
-  ["central-canal", 7, 0, 4, 22],
-  ["harbor-basin", 18, 14, 5, 7]
-] as const;
+const WATER_LAYOUT: readonly TileLayoutEntry[] = [];
 
-const BRIDGE_LAYOUT = [
-  ["north-bridge", 7, 1, 4, 1],
-  ["midtown-bridge", 7, 9, 4, 1],
-  ["civic-bridge", 7, 13, 4, 1],
-  ["terminal-bridge", 7, 20, 4, 1],
-  ["harbor-front-bridge", 18, 17, 5, 1],
-  ["terminal-basin-bridge", 18, 20, 5, 1],
-  ["harbor-spine-bridge", 20, 14, 1, 7]
-] as const;
+const BRIDGE_LAYOUT: readonly TileLayoutEntry[] = [];
 
 const PARK_LAYOUT = [
   ["west-garden", 2, 14, 2, 3],
