@@ -3,6 +3,7 @@ import type { EnemyState, GameSnapshot, PlayerState, ProjectileState, RectZone }
 import { clamp } from "../shared/utils/math";
 import type { AudioMixer } from "./AudioMixer";
 import { drawTiledRoads } from "./StreetTileRenderer";
+import { drawTireTrack, type TireTrackMark } from "./TireTrackRenderer";
 
 export interface VisualEntity {
   x: number;
@@ -361,6 +362,7 @@ export const renderGame = (
   visuals: VisualCache,
   audio: AudioMixer | undefined = undefined,
   drainBeams: DrainBeamVisual[] = [],
+  tireTracks: TireTrackMark[] = [],
   nowMs = performance.now()
 ): void => {
   const width = canvas.width / window.devicePixelRatio;
@@ -431,6 +433,11 @@ export const renderGame = (
     if (visual) {
       drawProjectile(ctx, visual, projectile);
     }
+  }
+
+  // Draw tire tracks before vehicles
+  for (const track of tireTracks) {
+    drawTireTrack(ctx, track, nowMs);
   }
 
   for (const enemy of snapshot.enemies) {

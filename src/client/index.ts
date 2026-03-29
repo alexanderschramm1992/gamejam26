@@ -7,6 +7,7 @@ import { AudioMixer } from "./AudioMixer";
 import { InputController } from "./InputController";
 import { GameOverOverlay } from "./GameOverOverlay";
 import { loadStreetTiles } from "./StreetTileRenderer";
+import { TireTrackManager } from "./TireTrackRenderer";
 import {
   VehicleSelectionMenu,
   type VehicleSelectionConfirmation
@@ -54,6 +55,7 @@ let lastRenderedEvent = 0;
 let vehicleSelectionConfirmed = false;
 let wasLocalPlayerDestroyed = false;
 const drainBeams: DrainBeamVisual[] = [];
+const tireTrackManager = new TireTrackManager();
 
 const getViewportSize = (): { width: number; height: number } => ({
   width: Math.max(640, Math.floor(canvas.clientWidth || window.innerWidth)),
@@ -266,7 +268,13 @@ const loop = (): void => {
     syncVisualMap(visuals.players, snapshot.players);
     syncVisualMap(visuals.enemies, snapshot.enemies);
     syncVisualMap(visuals.projectiles, snapshot.projectiles);
-    renderGame(context, canvas, snapshot, localPlayerId, adminPlayerId, visuals, audio, drainBeams, nowMs);
+    
+    // Update tire tracks based on all vehicles
+    const allVehicles = [...snapshot.players, ...snapshot.enemies];
+    tireTrackManager.updateTracks(allVehicles, nowMs);
+    const tireTracks = tireTrackManager.getMarks();
+    
+    renderGame(context, canvas, snapshot, localPlayerId, adminPlayerId, visuals, audio, drainBeams, tireTracks, nowMs);
   } else {
     const viewport = getViewportSize();
     context.clearRect(0, 0, viewport.width, viewport.height);

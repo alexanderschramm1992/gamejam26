@@ -58,3 +58,26 @@ export const circleIntersectsRect = (point: Vec2, radius: number, rect: RectZone
 
 export const randomBetween = (min: number, max: number): number =>
   min + Math.random() * (max - min);
+
+/**
+ * Berechnet die Winkelabweichung zwischen der Fahrzeugausrichtung (rotation) 
+ * und der tatsächlichen Fahrtrichtung (basierend auf Geschwindigkeitsvektor).
+ * Gibt den kleinsten Winkel in Grad zurück (0-180).
+ */
+export const calculateSlipAngle = (rotation: number, vx: number, vy: number): number => {
+  // Wenn das Fahrzeug nicht bewegt (vx und vy nahe 0), gibt es keinen Slip
+  const speed = Math.hypot(vx, vy);
+  if (speed < 0.1) return 0;
+
+  // Berechne Winkel der Fahrtrichtung
+  const velocityAngle = Math.atan2(vy, vx);
+  
+  // Normalisiere beide Winkel auf -π bis π
+  let angleDiff = wrapAngle(rotation - velocityAngle);
+  
+  // Konvertiere zu Grad und nimm den absoluten Wert (0-180)
+  const slipAngleDegrees = Math.abs(angleDiff * (180 / Math.PI));
+  
+  // Gib den kleinsten Winkel zurück (maximal 180 Grad)
+  return Math.min(slipAngleDegrees, 360 - slipAngleDegrees);
+};
