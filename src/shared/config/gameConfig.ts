@@ -32,7 +32,7 @@ export const GAME_CONFIG = {
     acceleration: 500,
     reverseAcceleration: 170,
     brakeStrength: 3.8,
-    turnSpeed: 2.9,
+    turnSpeed: 3.5, // Lenkgeschwindigkeit - höher = schneller lenken/engere Kurven
     maxForwardSpeed: 460,
     maxReverseSpeed: 160,
     friction: 0.9999,
@@ -71,11 +71,11 @@ export const GAME_CONFIG = {
     brakeDragStrength: 0.015,
     brakeDragMin: 0.5,
     brakeDragMax: 0.96,
-    minimumTurningVelocity: 8,
+    minimumTurningVelocity: 8, // Mindestgeschwindigkeit zum Lenken - niedriger = auch langsamer noch lenken können
     // Drift-Parameter für realistische Fahrtdynamik
-    driftResponse: 0.2, // Wie schnell die Fahrtrichtung dem Lenkwinkel folgt (0-1)
-    lateralGrip: 0.8, // Seitenhaftung: Wie gut das Fahrzeug bei Kurven hält (0-1)
-    angularVelocityMax: 3.2 // Max Rotationsgeschwindigkeit in Radianen pro Sekunde
+    driftResponse: 0.3, // Wie schnell die Fahrtrichtung dem Lenkwinkel folgt (0-1) - höher = direktere Lenkreaktion
+    lateralGrip: 0.6, // Seitenhaftung in Kurven - höher = besserer Grip beim Lenken (0-1)
+    angularVelocityMax: 4.0 // Max Rotationsgeschwindigkeit pro Sekunde - höher = schnellere Drehbewegungen
   },
   combat: {
     projectileRadius: 5,
