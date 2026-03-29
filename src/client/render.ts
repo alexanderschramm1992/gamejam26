@@ -69,6 +69,11 @@ export const setLocalPlayerCarAsset = async (src: string): Promise<void> => {
 };
 
 let buildingImages = new Map<string, HTMLImageElement>();
+let targetPointerImage: HTMLImageElement | null = null;
+
+export const loadHudAssets = async (): Promise<void> => {
+  targetPointerImage = await loadImage("/assets/hud/sushi.png");
+};
 
 export const loadBuildingAssets = async (): Promise<void> => {
   const images = await Promise.all(
