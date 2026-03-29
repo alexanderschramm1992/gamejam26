@@ -329,7 +329,8 @@ const drawDrainBeam = (
 };
 
 const drawWorldGeometry = (ctx: CanvasRenderingContext2D): void => {
-  ctx.fillStyle = "#132229";
+  const pavementPattern = pavementTileImage ? ctx.createPattern(pavementTileImage, "repeat") : null;
+  ctx.fillStyle = pavementPattern ?? "#132229";
   ctx.fillRect(0, 0, CITY_MAP.width, CITY_MAP.height);
 
   for (const park of CITY_MAP.parks) {
@@ -379,7 +380,6 @@ const drawWorldGeometry = (ctx: CanvasRenderingContext2D): void => {
 
   drawTiledRoads(ctx);
 
-  const pavementPattern = pavementTileImage ? ctx.createPattern(pavementTileImage, "repeat") : null;
   for (const lot of getBuildingLots()) {
     drawPavedLot(ctx, lot, pavementPattern);
   }
