@@ -102,12 +102,19 @@ const getBuildingImage = (building: RectZone): HTMLImageElement | null => {
   return buildingImages.get(getBuildingAsset(building).id) ?? null;
 };
 
+const snapToPixelGrid = (value: number): number =>
+  Math.round(value * currentPixelSnapScale) / currentPixelSnapScale;
+
 const drawBuildingImage = (
   ctx: CanvasRenderingContext2D,
   drawRect: RectZone,
   buildingImage: HTMLImageElement
 ): void => {
-  ctx.drawImage(buildingImage, drawRect.x, drawRect.y, drawRect.width, drawRect.height);
+  const snappedX = snapToPixelGrid(drawRect.x);
+  const snappedY = snapToPixelGrid(drawRect.y);
+  const snappedWidth = Math.max(1, snapToPixelGrid(drawRect.width));
+  const snappedHeight = Math.max(1, snapToPixelGrid(drawRect.height));
+  ctx.drawImage(buildingImage, snappedX, snappedY, snappedWidth, snappedHeight);
 };
 
 const getBuildingLotRect = (buildingId: string): RectZone | null => {
@@ -192,6 +199,7 @@ const CAMERA_ZOOM_IDLE = 1.08;
 const CAMERA_ZOOM_FAST = 0.96;
 const CAMERA_ZOOM_RESPONSE = 0.08;
 let currentCameraZoom = CAMERA_ZOOM_IDLE;
+let currentPixelSnapScale = window.devicePixelRatio || 1;
 
 export interface VisualCache {
   players: Map<string, VisualEntity>;
@@ -497,6 +505,8 @@ export const renderGame = (
   const width = canvas.width / window.devicePixelRatio;
   const height = canvas.height / window.devicePixelRatio;
   ctx.clearRect(0, 0, width, height);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
 
   const localPlayer = snapshot.players.find((player) => player.id === localPlayerId);
   const localPlayerVisual = localPlayerId ? visuals.players.get(localPlayerId) ?? null : null;
@@ -513,10 +523,15 @@ export const renderGame = (
 
   const visibleWorldWidth = width / currentCameraZoom;
   const visibleWorldHeight = height / currentCameraZoom;
+  currentPixelSnapScale = (window.devicePixelRatio || 1) * currentCameraZoom;
   const cameraTargetX = localPlayerVisual?.x ?? localPlayer?.x ?? CITY_MAP.width / 2;
   const cameraTargetY = localPlayerVisual?.y ?? localPlayer?.y ?? CITY_MAP.height / 2;
-  const cameraX = clamp(cameraTargetX, visibleWorldWidth / 2, CITY_MAP.width - visibleWorldWidth / 2);
-  const cameraY = clamp(cameraTargetY, visibleWorldHeight / 2, CITY_MAP.height - visibleWorldHeight / 2);
+  const cameraX = snapToPixelGrid(
+    clamp(cameraTargetX, visibleWorldWidth / 2, CITY_MAP.width - visibleWorldWidth / 2)
+  );
+  const cameraY = snapToPixelGrid(
+    clamp(cameraTargetY, visibleWorldHeight / 2, CITY_MAP.height - visibleWorldHeight / 2)
+  );
   const viewBounds: ViewportBounds = {
     left: cameraX - visibleWorldWidth / 2,
     top: cameraY - visibleWorldHeight / 2,
