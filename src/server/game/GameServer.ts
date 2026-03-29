@@ -40,6 +40,7 @@ const neutralInput: PlayerInput = {
   steer: 0,
   shoot: false,
   interact: false,
+  aimAngle: 0,
   seq: 0
 };
 
@@ -228,7 +229,7 @@ export class GameServer {
 
       if (input.shoot && player.weaponCooldown <= 0 && player.battery > GAME_CONFIG.battery.shootDrain) {
         this.projectiles.push(
-          firePlayerProjectile(player, this.allocateId("projectile"), this.adminSettings.playerDamageMultiplier)
+          firePlayerProjectile(player, this.allocateId("projectile"), this.adminSettings.playerDamageMultiplier, input.aimAngle)
         );
         this.pushEvent("shot", `${player.name} fired`, player.x, player.y, player.id);
       }

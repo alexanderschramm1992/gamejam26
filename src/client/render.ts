@@ -71,9 +71,15 @@ export const setLocalPlayerCarAsset = async (src: string): Promise<void> => {
 
 let buildingImages = new Map<string, HTMLImageElement>();
 let targetPointerImage: HTMLImageElement | null = null;
+let weaponImage: HTMLImageElement | null = null;
+let bulletImage: HTMLImageElement | null = null;
 
 export const loadHudAssets = async (): Promise<void> => {
-  targetPointerImage = await loadImage("/assets/hud/sushi.png");
+  [targetPointerImage, weaponImage, bulletImage] = await Promise.all([
+    loadImage("/assets/hud/sushi.png"),
+    loadImage("/assets/weapon_systems/MG.png"),
+    loadImage("/assets/weapon_systems/Bullet_MG.png")
+  ]);
 };
 
 export const loadBuildingAssets = async (): Promise<void> => {
@@ -130,7 +136,8 @@ const drawVehicle = (
   entity: PlayerState | EnemyState,
   color: string,
   label: string,
-  customImage?: HTMLImageElement | null
+  customImage?: HTMLImageElement | null,
+  weaponAngle?: number
 ): void => {
   const sprite = customImage ?? carImage;
   const isGhostPlayer = entity.type === "player" && entity.ghostTimer > 0;
@@ -177,6 +184,16 @@ const drawVehicle = (
   ctx.textAlign = "center";
   ctx.fillText(label, visual.x, visual.y - entity.radius - 18);
 
+  if (weaponImage && weaponAngle !== undefined && entity.type === "player") {
+    ctx.save();
+    ctx.translate(visual.x, visual.y);
+    ctx.rotate(weaponAngle + Math.PI / 2);
+    const weaponHeight = entity.radius * 2.5;
+    const weaponWidth = weaponHeight * (weaponImage.width / weaponImage.height);
+    ctx.drawImage(weaponImage, -weaponWidth / 2, -weaponHeight / 2, weaponWidth, weaponHeight);
+    ctx.restore();
+  }
+
   const barWidth = 44;
   const healthRatio = clamp(entity.health / entity.maxHealth, 0, 1);
   const batteryRatio = clamp(entity.battery / entity.maxBattery, 0, 1);
@@ -195,6 +212,18 @@ const drawProjectile = (
   visual: VisualEntity,
   projectile: ProjectileState
 ): void => {
+  if (bulletImage) {
+    ctx.save();
+    ctx.translate(visual.x, visual.y);
+    const rotation = Math.atan2(projectile.vy, projectile.vx);
+    ctx.rotate(rotation + Math.PI / 2);
+    const imgHeight = projectile.radius * 4.2;
+    const imgWidth = imgHeight * (bulletImage.width / bulletImage.height);
+    ctx.drawImage(bulletImage, -imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight);
+    ctx.restore();
+    return;
+  }
+
   ctx.save();
   ctx.fillStyle = projectile.ownerType === "player" ? "#ffcf69" : "#ff6767";
   ctx.shadowBlur = 12;
@@ -339,7 +368,8 @@ export const renderGame = (
   audio: AudioMixer | undefined = undefined,
   drainBeams: DrainBeamVisual[] = [],
   tireTracks: TireTrackMark[] = [],
-  nowMs = performance.now()
+  nowMs = performance.now(),
+  localPlayerAimAngle = 0
 ): void => {
   const width = canvas.width / window.devicePixelRatio;
   const height = canvas.height / window.devicePixelRatio;
@@ -439,7 +469,8 @@ export const renderGame = (
         player,
         player.color,
         formatPlayerLabel(player, adminPlayerId),
-        player.id === localPlayerId ? localPlayerCarImage : null
+        player.id === localPlayerId ? localPlayerCarImage : null,
+        player.id === localPlayerId ? localPlayerAimAngle : undefined
       );
     }
   }
