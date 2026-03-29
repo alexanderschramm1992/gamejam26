@@ -40,47 +40,40 @@ const circlePoi = (id: string, label: string, col: number, row: number, radius: 
 const ROAD_LAYOUT = [
   ["west-artery", 1, 0, 1, 22],
   ["market-west", 4, 0, 1, 22],
-  ["riverside-west", 6, 0, 1, 22],
   ["civic-avenue", 11, 0, 1, 22],
-  ["dispatch-spine", 14, 0, 1, 22],
-  ["garden-avenue", 17, 0, 1, 17],
+  ["dispatch-spine", 15, 0, 1, 22],
   ["harbor-spine", 20, 0, 1, 22],
-  ["outer-east", 23, 0, 1, 22],
+  ["outer-east", 24, 0, 1, 22],
   ["north-loop", 0, 1, 26, 1],
-  ["old-town-crossing", 0, 4, 18, 1],
-  ["market-crossing", 0, 6, 24, 1],
-  ["midtown-boulevard", 1, 8, 20, 1],
-  ["warehouse-row", 3, 10, 21, 1],
-  ["civic-ring", 0, 12, 21, 1],
-  ["south-cut", 2, 14, 14, 1],
-  ["river-market-road", 0, 16, 20, 1],
-  ["harbor-front", 14, 17, 12, 1],
-  ["grand-bypass", 0, 18, 24, 1],
-  ["terminal-way", 4, 20, 20, 1]
+  ["old-town-crossing", 0, 5, 18, 1],
+  ["midtown-boulevard", 2, 9, 19, 1],
+  ["civic-ring", 0, 13, 21, 1],
+  ["harbor-front", 12, 17, 13, 1],
+  ["terminal-way", 3, 20, 22, 1]
 ] as const;
 
 const WATER_LAYOUT = [
   ["central-canal", 7, 0, 4, 22],
-  ["harbor-basin", 18, 15, 5, 6]
+  ["harbor-basin", 18, 14, 5, 7]
 ] as const;
 
 const BRIDGE_LAYOUT = [
   ["north-bridge", 7, 1, 4, 1],
-  ["midtown-bridge", 7, 8, 4, 1],
-  ["civic-bridge", 7, 12, 4, 1],
+  ["midtown-bridge", 7, 9, 4, 1],
+  ["civic-bridge", 7, 13, 4, 1],
   ["terminal-bridge", 7, 20, 4, 1],
   ["harbor-front-bridge", 18, 17, 5, 1],
   ["terminal-basin-bridge", 18, 20, 5, 1],
-  ["harbor-spine-bridge", 20, 15, 1, 6]
+  ["harbor-spine-bridge", 20, 14, 1, 7]
 ] as const;
 
 const PARK_LAYOUT = [
-  ["west-garden", 2, 13, 2, 3],
-  ["riverside-garden", 15, 2, 2, 3],
-  ["civic-green", 12, 4, 2, 2],
-  ["canal-commons", 12, 14, 2, 2],
-  ["terminal-green", 21, 9, 2, 2],
-  ["harbor-park", 24, 15, 2, 4]
+  ["west-garden", 2, 14, 2, 3],
+  ["riverside-garden", 16, 2, 3, 2],
+  ["civic-green", 12, 6, 2, 2],
+  ["canal-commons", 16, 14, 3, 2],
+  ["terminal-green", 21, 10, 2, 2],
+  ["south-pocket-park", 5, 17, 2, 2]
 ] as const;
 
 const roads = ROAD_LAYOUT.map(([id, col, row, width, height]) => tileZone(id, col, row, width, height));
@@ -143,9 +136,9 @@ const hashString = (value: string): number => {
 const OPEN_LOT_CELLS = new Set([
   cellKey(0, 0),
   cellKey(2, 0),
-  cellKey(5, 18),
-  cellKey(18, 9),
-  cellKey(24, 14)
+  cellKey(18, 10),
+  cellKey(23, 14),
+  cellKey(25, 21)
 ]);
 
 const createBuildingZone = (
@@ -230,43 +223,43 @@ export const CITY_MAP: WorldMapData = {
   water,
   bridges,
   chargeStations: [
-    circlePoi("charge-west", "Old Town Charge", 4, 6, 96),
-    circlePoi("charge-riverside", "Riverside Charge", 11, 8, 96),
-    circlePoi("charge-central", "Civic Charge", 14, 12, 96),
-    circlePoi("charge-harbor", "Harbor Charge", 20, 18, 96),
-    circlePoi("charge-east", "Skyline Charge", 23, 8, 96)
+    circlePoi("charge-west", "Old Town Charge", 4, 5, 96),
+    circlePoi("charge-riverside", "Riverside Charge", 11, 9, 96),
+    circlePoi("charge-central", "Civic Charge", 15, 13, 96),
+    circlePoi("charge-harbor", "Harbor Charge", 20, 17, 96),
+    circlePoi("charge-east", "Skyline Charge", 24, 9, 96)
   ],
   boostLanes: [
-    { id: "boost-west", x: tile(4) + 30, y: tile(2) + 20, width: 196, height: tile(4) - 40, heading: Math.PI / 2 },
-    { id: "boost-civic", x: tile(11) + 20, y: tile(12) + 30, width: tile(5) - 40, height: 196, heading: 0 },
-    { id: "boost-harbor", x: tile(20) + 30, y: tile(15) + 20, width: 196, height: tile(4) - 40, heading: Math.PI / 2 },
-    { id: "boost-terminal", x: tile(20) + 24, y: tile(20) + 30, width: tile(3) - 48, height: 196, heading: 0 }
+    { id: "boost-west", x: tile(4) + 30, y: tile(2) + 20, width: 196, height: tile(3) - 40, heading: Math.PI / 2 },
+    { id: "boost-civic", x: tile(11) + 20, y: tile(13) + 30, width: tile(4) - 40, height: 196, heading: 0 },
+    { id: "boost-harbor", x: tile(20) + 30, y: tile(14) + 20, width: 196, height: tile(3) - 40, heading: Math.PI / 2 },
+    { id: "boost-terminal", x: tile(20) + 24, y: tile(20) + 30, width: tile(4) - 48, height: 196, heading: 0 }
   ],
   dispatchPoints: [
-    circlePoi("dispatch-central", "Civic Dispatch", 14, 12, 112)
+    circlePoi("dispatch-central", "Civic Dispatch", 15, 13, 112)
   ],
   deliveryPoints: [
     circlePoi("delivery-old-town", "Old Town Corner", 1, 1, 110),
-    circlePoi("delivery-market", "Riverside Market", 6, 6, 110),
-    circlePoi("delivery-midtown", "Midtown Exchange", 11, 10, 110),
-    circlePoi("delivery-garden", "Garden Quarter", 17, 4, 110),
+    circlePoi("delivery-market", "Riverside Market", 4, 9, 110),
+    circlePoi("delivery-midtown", "Midtown Exchange", 11, 5, 110),
+    circlePoi("delivery-garden", "Garden Quarter", 15, 17, 110),
     circlePoi("delivery-harbor", "Harbor Plaza", 20, 17, 110),
-    circlePoi("delivery-terminal", "Terminal Gate", 23, 20, 110),
-    circlePoi("delivery-south", "South Commons", 14, 18, 110)
+    circlePoi("delivery-terminal", "Terminal Gate", 24, 20, 110),
+    circlePoi("delivery-south", "South Commons", 15, 20, 110)
   ],
   enemyHotspots: [
-    circlePoi("hotspot-canal-north", "Canal North", 6, 2, 120),
-    circlePoi("hotspot-warehouse", "Warehouse Row", 11, 10, 120),
-    circlePoi("hotspot-south", "South Commons", 14, 18, 120),
+    circlePoi("hotspot-west", "Old Town Crew", 4, 2, 120),
+    circlePoi("hotspot-canal", "Canal North", 11, 9, 120),
+    circlePoi("hotspot-central", "Civic Ring", 15, 13, 120),
     circlePoi("hotspot-harbor", "Harbor Pack", 20, 20, 120),
-    circlePoi("hotspot-east", "Outer East", 23, 6, 120)
+    circlePoi("hotspot-east", "Outer East", 24, 5, 120)
   ],
   navigationNodes,
   playerSpawns: [
-    point(14, 12, 0.34, 0.34),
-    point(14, 12, 0.66, 0.34),
-    point(14, 12, 0.34, 0.66),
-    point(14, 12, 0.66, 0.66)
+    point(15, 13, 0.34, 0.34),
+    point(15, 13, 0.66, 0.34),
+    point(15, 13, 0.34, 0.66),
+    point(15, 13, 0.66, 0.66)
   ]
 };
 

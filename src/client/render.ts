@@ -150,6 +150,11 @@ const drawPavedLot = (
   ctx.restore();
 };
 
+const CAMERA_ZOOM_IDLE = 1.08;
+const CAMERA_ZOOM_FAST = 0.96;
+const CAMERA_ZOOM_RESPONSE = 0.08;
+let currentCameraZoom = CAMERA_ZOOM_IDLE;
+
 export interface VisualCache {
   players: Map<string, VisualEntity>;
   enemies: Map<string, VisualEntity>;
@@ -409,18 +414,26 @@ export const renderGame = (
   ctx.clearRect(0, 0, width, height);
 
   const localPlayer = snapshot.players.find((player) => player.id === localPlayerId);
+  const localPlayerSpeed = localPlayer ? Math.abs(Math.hypot(localPlayer.vx, localPlayer.vy)) : 0;
 
   if (audio && localPlayer) {
-    const speed = Math.abs(Math.hypot(localPlayer.vx, localPlayer.vy));
     const maxSpeed = 280;
-    audio.updateEngineSound(speed, maxSpeed);
+    audio.updateEngineSound(localPlayerSpeed, maxSpeed);
   }
 
-  const cameraX = clamp(localPlayer?.x ?? CITY_MAP.width / 2, width / 2, CITY_MAP.width - width / 2);
-  const cameraY = clamp(localPlayer?.y ?? CITY_MAP.height / 2, height / 2, CITY_MAP.height - height / 2);
+  const zoomT = clamp(localPlayerSpeed / 420, 0, 1);
+  const targetCameraZoom = CAMERA_ZOOM_IDLE + (CAMERA_ZOOM_FAST - CAMERA_ZOOM_IDLE) * zoomT;
+  currentCameraZoom += (targetCameraZoom - currentCameraZoom) * CAMERA_ZOOM_RESPONSE;
+
+  const visibleWorldWidth = width / currentCameraZoom;
+  const visibleWorldHeight = height / currentCameraZoom;
+  const cameraX = clamp(localPlayer?.x ?? CITY_MAP.width / 2, visibleWorldWidth / 2, CITY_MAP.width - visibleWorldWidth / 2);
+  const cameraY = clamp(localPlayer?.y ?? CITY_MAP.height / 2, visibleWorldHeight / 2, CITY_MAP.height - visibleWorldHeight / 2);
 
   ctx.save();
-  ctx.translate(width / 2 - cameraX, height / 2 - cameraY);
+  ctx.translate(width / 2, height / 2);
+  ctx.scale(currentCameraZoom, currentCameraZoom);
+  ctx.translate(-cameraX, -cameraY);
   drawWorldGeometry(ctx);
 
   // Draw boost lanes
