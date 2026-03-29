@@ -1,7 +1,8 @@
 import { io, type Socket } from "socket.io-client";
 import type { ClientEvents, ServerEvents } from "../shared/network/protocol";
-import type { GameSnapshot, PlayerState, WorldEvent } from "../shared/model/types";
+import type { GameSnapshot, PlayerInput, PlayerState, WorldEvent } from "../shared/model/types";
 import { lerp, wrapAngle, clamp } from "../shared/utils/math";
+import { GAME_CONFIG } from "../shared/config/gameConfig";
 import { CITY_MAP } from "../shared/map/cityMap";
 import { AdminMenu } from "./AdminMenu";
 import { AudioMixer } from "./AudioMixer";
@@ -56,8 +57,20 @@ let inputSequence = 0;
 let lastRenderedEvent = 0;
 let vehicleSelectionConfirmed = false;
 let wasLocalPlayerDestroyed = false;
+let lastStatusText = "";
+let lastFeedSignature = "";
+let lastSnapshotReceivedAtMs = performance.now();
 const drainBeams: DrainBeamVisual[] = [];
 const tireTrackManager = new TireTrackManager();
+
+// Debug overlay variables
+let lastFrameTime = 0;
+let fps = 0;
+let serverTickRate = 0;
+let lastTick = 0;
+let lastTickTime = 0;
+let lastInputSentAtMs = 0;
+let lastSentInput: PlayerInput | null = null;
 
 const getViewportSize = (): { width: number; height: number } => ({
   width: Math.max(640, Math.floor(canvas.clientWidth || window.innerWidth)),
@@ -75,6 +88,24 @@ const updateInputEnabled = (): void => {
   input.setEnabled(vehicleSelectionConfirmed && !adminMenu.isOpen() && !gameOverOverlay.isOpen());
 };
 
+const shouldSendInput = (nextInput: PlayerInput, nowMs: number): boolean => {
+  const sendIntervalMs = 1000 / GAME_CONFIG.tickRate;
+  if (nowMs - lastInputSentAtMs >= sendIntervalMs) {
+    return true;
+  }
+
+  if (!lastSentInput) {
+    return true;
+  }
+
+  return (
+    nextInput.shoot !== lastSentInput.shoot ||
+    nextInput.interact !== lastSentInput.interact ||
+    nextInput.throttle !== lastSentInput.throttle ||
+    nextInput.steer !== lastSentInput.steer
+  );
+};
+
 const resize = (): void => {
   const viewport = getViewportSize();
   const ratio = window.devicePixelRatio || 1;
@@ -85,9 +116,10 @@ const resize = (): void => {
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
 };
 
-const syncVisualMap = <T extends { id: string; x: number; y: number; rotation?: number }>(
+const syncVisualMap = <T extends { id: string; x: number; y: number; vx?: number; vy?: number; rotation?: number }>(
   target: Map<string, VisualEntity>,
-  entities: T[]
+  entities: T[],
+  nowMs: number
 ): void => {
   const validIds = new Set(entities.map((entity) => entity.id));
   for (const [id] of target) {
@@ -96,15 +128,23 @@ const syncVisualMap = <T extends { id: string; x: number; y: number; rotation?: 
     }
   }
 
+  const snapshotAgeSeconds = clamp(
+    (nowMs - lastSnapshotReceivedAtMs) / 1000,
+    0,
+    2 / GAME_CONFIG.snapshotRate
+  );
+
   for (const entity of entities) {
+    const targetX = entity.x + (entity.vx ?? 0) * snapshotAgeSeconds;
+    const targetY = entity.y + (entity.vy ?? 0) * snapshotAgeSeconds;
     const existing = target.get(entity.id);
     if (!existing) {
-      target.set(entity.id, { x: entity.x, y: entity.y, rotation: entity.rotation ?? 0 });
+      target.set(entity.id, { x: targetX, y: targetY, rotation: entity.rotation ?? 0 });
       continue;
     }
 
-    existing.x = lerp(existing.x, entity.x, 0.26);
-    existing.y = lerp(existing.y, entity.y, 0.26);
+    existing.x = lerp(existing.x, targetX, 0.26);
+    existing.y = lerp(existing.y, targetY, 0.26);
     const rotation = entity.rotation ?? 0;
     existing.rotation += wrapAngle(rotation - existing.rotation) * 0.24;
   }
@@ -185,9 +225,13 @@ const updateOverlay = (): void => {
   const playerText = player
     ? `${formatPlayerName(player.name, player.id)} | hull ${player.health.toFixed(0)} | battery ${player.battery.toFixed(0)}`
     : "Spectating sync";
-  statusEl.textContent = `${missionText}
+  const nextStatusText = `${missionText}
 ${playerText}
 score ${snapshot.team.score} | deliveries ${snapshot.team.deliveries} | danger ${snapshot.team.danger}`;
+  if (nextStatusText !== lastStatusText) {
+    statusEl.textContent = nextStatusText;
+    lastStatusText = nextStatusText;
+  }
 
   const freshEvents = snapshot.recentEvents.filter((event) => event.id > lastRenderedEvent);
   if (freshEvents.length > 0) {
@@ -196,15 +240,19 @@ score ${snapshot.team.score} | deliveries ${snapshot.team.deliveries} | danger $
     lastRenderedEvent = freshEvents[freshEvents.length - 1].id;
   }
 
-  feedEl.innerHTML = "";
-  snapshot.recentEvents
-    .slice()
-    .reverse()
-    .forEach((event) => {
-      const item = document.createElement("li");
-      item.textContent = event.text;
-      feedEl.appendChild(item);
-    });
+  const feedSignature = snapshot.recentEvents.map((event) => event.id).join(",");
+  if (feedSignature !== lastFeedSignature) {
+    feedEl.innerHTML = "";
+    snapshot.recentEvents
+      .slice()
+      .reverse()
+      .forEach((event) => {
+        const item = document.createElement("li");
+        item.textContent = event.text;
+        feedEl.appendChild(item);
+      });
+    lastFeedSignature = feedSignature;
+  }
 };
 
 socket.on("hello", ({ playerId }) => {
@@ -218,12 +266,23 @@ socket.on("adminState", (state) => {
 });
 
 socket.on("snapshot", (nextSnapshot) => {
+  const nowMs = performance.now();
+
+  // Calculate server tick rate
+  if (lastTick > 0 && lastTickTime > 0) {
+    const tickDelta = nextSnapshot.tick - lastTick;
+    const timeDelta = nowMs - lastTickTime;
+    if (timeDelta > 0) {
+      serverTickRate = (tickDelta / timeDelta) * 1000; // ticks per second
+    }
+  }
+  lastTick = nextSnapshot.tick;
+  lastTickTime = nowMs;
+  lastSnapshotReceivedAtMs = nowMs;
+
   snapshot = nextSnapshot;
-  syncVisualMap(visuals.players, snapshot.players);
-  syncVisualMap(visuals.enemies, snapshot.enemies);
-  syncVisualMap(visuals.projectiles, snapshot.projectiles);
   updateOverlay();
-  syncGameOverState(performance.now());
+  syncGameOverState(nowMs);
 });
 
 adminMenu.onUpdate((patch) => {
@@ -261,24 +320,34 @@ window.addEventListener("blur", () => {
 
 const loop = (): void => {
   const nowMs = performance.now();
+  
+  // Calculate FPS
+  if (lastFrameTime > 0) {
+    const deltaTime = nowMs - lastFrameTime;
+    fps = 1000 / deltaTime;
+  }
+  lastFrameTime = nowMs;
+  
   const localPlayer = findLocalPlayer(snapshot);
   const viewport = getViewportSize();
   const cameraX = clamp(localPlayer?.x ?? CITY_MAP.width / 2, viewport.width / 2, CITY_MAP.width - viewport.width / 2);
   const cameraY = clamp(localPlayer?.y ?? CITY_MAP.height / 2, viewport.height / 2, CITY_MAP.height - viewport.height / 2);
   const aimAngle = input.getAimAngle(localPlayer, cameraX, cameraY);
   inputSequence += 1;
-  socket.emit("input", input.snapshot(inputSequence, aimAngle));
+  const nextInput = input.snapshot(inputSequence, aimAngle);
+  if (shouldSendInput(nextInput, nowMs)) {
+    socket.emit("input", nextInput);
+    lastInputSentAtMs = nowMs;
+    lastSentInput = nextInput;
+  }
   pruneExpiredDrainBeams(nowMs);
   syncGameOverState(nowMs);
 
   if (snapshot) {
-    syncVisualMap(visuals.players, snapshot.players);
-    syncVisualMap(visuals.enemies, snapshot.enemies);
-    syncVisualMap(visuals.projectiles, snapshot.projectiles);
-    
-    // Update tire tracks based on all vehicles
-    const allVehicles = [...snapshot.players, ...snapshot.enemies];
-    tireTrackManager.updateTracks(allVehicles, nowMs);
+    syncVisualMap(visuals.players, snapshot.players, nowMs);
+    syncVisualMap(visuals.enemies, snapshot.enemies, nowMs);
+    syncVisualMap(visuals.projectiles, snapshot.projectiles, nowMs);
+    tireTrackManager.updateTracks(snapshot.players, nowMs);
     const tireTracks = tireTrackManager.getMarks();
     
     renderGame(context, canvas, snapshot, localPlayerId, adminPlayerId, visuals, audio, drainBeams, tireTracks, nowMs, aimAngle);

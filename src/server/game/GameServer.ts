@@ -77,6 +77,11 @@ export class GameServer {
     setInterval(() => this.tick(stepMs / 1000), stepMs);
   }
 
+  private shouldBroadcastSnapshot(): boolean {
+    const ticksPerSnapshot = Math.max(1, Math.round(GAME_CONFIG.tickRate / GAME_CONFIG.snapshotRate));
+    return this.tickCounter % ticksPerSnapshot === 0;
+  }
+
   public addSocket(socket: Socket): void {
     const player = this.createPlayer(socket.id);
     this.players.set(player.id, player);
@@ -188,7 +193,9 @@ export class GameServer {
     this.cleanupDestroyedEntities();
     this.updateMission(dt);
     this.updateEnemySpawning(dt);
-    this.broadcastSnapshot(now);
+    if (this.shouldBroadcastSnapshot()) {
+      this.broadcastSnapshot(now);
+    }
   }
 
   private updatePlayers(dt: number, now: number): void {
@@ -432,6 +439,13 @@ export class GameServer {
     }
 
     this.enemies = this.enemies.filter((enemy) => !enemy.destroyed);
+    const activeEnemyIds = new Set(this.enemies.map((enemy) => enemy.id));
+    for (const enemyId of this.enemyBrains.keys()) {
+      if (!activeEnemyIds.has(enemyId)) {
+        this.enemyBrains.delete(enemyId);
+      }
+    }
+
     for (const player of this.players.values()) {
       if (player.health <= 0 && !player.destroyed) {
         this.destroyPlayer(player);

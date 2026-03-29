@@ -26,7 +26,8 @@ export interface EnemyArchetype extends VehicleTuning {
 export const PLAYER_COLORS = ["#58f0ff", "#ffa84d", "#c1ff72", "#ff7ad1"];
 
 export const GAME_CONFIG = {
-  tickRate: 30,
+  tickRate: 60,
+  snapshotRate: 30,
   arenaPadding: 80,
   player: {
     acceleration: 500,

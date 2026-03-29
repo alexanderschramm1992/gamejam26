@@ -61,9 +61,10 @@ export const updateProjectiles = (
   dt: number,
   pushEvent: (type: WorldEvent["type"], text: string, x?: number, y?: number, entityId?: string) => void
 ): ProjectileState[] => {
-  const survivors: ProjectileState[] = [];
+  let writeIndex = 0;
 
-  for (const projectile of projectiles) {
+  for (let readIndex = 0; readIndex < projectiles.length; readIndex += 1) {
+    const projectile = projectiles[readIndex]!;
     projectile.life -= dt;
     if (projectile.life <= 0) {
       continue;
@@ -112,9 +113,11 @@ export const updateProjectiles = (
     }
 
     if (!consumed) {
-      survivors.push(projectile);
+      projectiles[writeIndex] = projectile;
+      writeIndex += 1;
     }
   }
 
-  return survivors;
+  projectiles.length = writeIndex;
+  return projectiles;
 };

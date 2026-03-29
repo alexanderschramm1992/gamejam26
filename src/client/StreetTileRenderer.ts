@@ -13,6 +13,22 @@ export interface TileAsset {
   loadingPromise: Promise<void> | null;
 }
 
+export interface ViewportBounds {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+interface PreparedRoadTile {
+  x: number;
+  y: number;
+  col: number;
+  row: number;
+  tileName: string;
+  rotation: number;
+}
+
 // Tile asset catalog, loaded from street tile files named after the directions they connect.
 const TILE_CATALOG: Record<string, string> = {
   left: "/assets/street_tiles/left.png",
@@ -185,22 +201,65 @@ const buildRoadGrid = (): Set<string> => {
   return cells;
 };
 
-const hasRoadAt = (roadCells: Set<string>, col: number, row: number): boolean => {
-  return roadCells.has(`${col},${row}`);
+const hasRoadAt = (cells: Set<string>, col: number, row: number): boolean => {
+  return cells.has(`${col},${row}`);
 };
 
-const getConnectionsForCell = (roadCells: Set<string>, col: number, row: number): Direction[] => {
-  if (!hasRoadAt(roadCells, col, row)) {
+const getConnectionsForCell = (cells: Set<string>, col: number, row: number): Direction[] => {
+  if (!hasRoadAt(cells, col, row)) {
     return [];
   }
 
   const connections: Direction[] = [];
-  if (hasRoadAt(roadCells, col - 1, row)) connections.push("left");
-  if (hasRoadAt(roadCells, col + 1, row)) connections.push("right");
-  if (hasRoadAt(roadCells, col, row + 1)) connections.push("down");
-  if (hasRoadAt(roadCells, col, row - 1)) connections.push("up");
+  if (hasRoadAt(cells, col - 1, row)) connections.push("left");
+  if (hasRoadAt(cells, col + 1, row)) connections.push("right");
+  if (hasRoadAt(cells, col, row + 1)) connections.push("down");
+  if (hasRoadAt(cells, col, row - 1)) connections.push("up");
 
   return connections;
+};
+
+const roadCells = buildRoadGrid();
+
+const preparedRoadTiles: PreparedRoadTile[] = (() => {
+  const cols = CITY_MAP.width / ROAD_TILE_SIZE;
+  const rows = CITY_MAP.height / ROAD_TILE_SIZE;
+  const tilesToDraw: PreparedRoadTile[] = [];
+
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      if (!hasRoadAt(roadCells, col, row)) {
+        continue;
+      }
+
+      const connections = getConnectionsForCell(roadCells, col, row);
+      const variant = chooseTileVariant(connections, col, row);
+      tilesToDraw.push({
+        x: col * ROAD_TILE_SIZE,
+        y: row * ROAD_TILE_SIZE,
+        col,
+        row,
+        tileName: variant?.tileName ?? "none",
+        rotation: variant?.rotation ?? 0
+      });
+    }
+  }
+
+  return tilesToDraw;
+})();
+
+const intersectsBounds = (
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  bounds?: ViewportBounds
+): boolean => {
+  if (!bounds) {
+    return true;
+  }
+
+  return x < bounds.right && x + width > bounds.left && y < bounds.bottom && y + height > bounds.top;
 };
 
 const drawRoadTile = (
@@ -252,32 +311,26 @@ const drawRoadTile = (
   ctx.restore();
 };
 
-export const drawTiledRoads = (ctx: CanvasRenderingContext2D): void => {
-  const roadCells = buildRoadGrid();
-  const cols = CITY_MAP.width / ROAD_TILE_SIZE;
-  const rows = CITY_MAP.height / ROAD_TILE_SIZE;
-
-  for (let row = 0; row < rows; row += 1) {
-    for (let col = 0; col < cols; col += 1) {
-      if (!hasRoadAt(roadCells, col, row)) {
-        continue;
-      }
-
-      const connections = getConnectionsForCell(roadCells, col, row);
-      const variant = chooseTileVariant(connections, col, row);
-      const tileName = variant?.tileName ?? "none";
-      const rotation = variant?.rotation ?? 0;
-      drawRoadTile(ctx, col, row, tileName, rotation);
+export const drawTiledRoads = (ctx: CanvasRenderingContext2D, bounds?: ViewportBounds): void => {
+  for (const tile of preparedRoadTiles) {
+    if (!intersectsBounds(tile.x, tile.y, ROAD_TILE_SIZE, ROAD_TILE_SIZE, bounds)) {
+      continue;
     }
+
+    drawRoadTile(ctx, tile.col, tile.row, tile.tileName, tile.rotation);
   }
 
-  drawRoadMarkings(ctx);
+  drawRoadMarkings(ctx, bounds);
 };
 
-const drawRoadMarkings = (ctx: CanvasRenderingContext2D): void => {
+const drawRoadMarkings = (ctx: CanvasRenderingContext2D, bounds?: ViewportBounds): void => {
   ctx.strokeStyle = "rgba(255,255,255,0.06)";
   ctx.lineWidth = 4;
   for (const road of CITY_MAP.roads) {
+    if (!intersectsBounds(road.x, road.y, road.width, road.height, bounds)) {
+      continue;
+    }
+
     if (road.width > road.height) {
       const y = road.y + road.height / 2;
       for (let x = road.x + 20; x < road.x + road.width - 20; x += 42) {

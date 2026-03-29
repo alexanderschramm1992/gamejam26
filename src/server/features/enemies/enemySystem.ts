@@ -1,10 +1,9 @@
-import { getBuildingCollisionRect } from "../../../shared/map/buildingAssets";
 import { ENEMY_ARCHETYPES, GAME_CONFIG } from "../../../shared/config/gameConfig";
 import { CITY_MAP, findNearestNavigationNode, findPath } from "../../../shared/map/cityMap";
 import type { AdminSettings, EnemyKind, EnemyState, PlayerInput, PlayerState, ProjectileState, Vec2 } from "../../../shared/model/types";
 import { angleOf, clamp, distance, randomBetween, wrapAngle } from "../../../shared/utils/math";
 import { fireEnemyProjectile } from "../combat/combatSystem";
-import { getSurfaceInfo, resolveWorldCollision } from "../map/worldQueries";
+import { getNearbyBuildingCollisionRects, getSurfaceInfo, resolveWorldCollision } from "../map/worldQueries";
 import { stepVehicle } from "../movement/vehiclePhysics";
 import { updateVehicleResources } from "../resources/resourceSystem";
 
@@ -56,15 +55,12 @@ const getLookaheadWaypoint = (waypoints: Vec2[], speed: number, fallback: Vec2):
 };
 
 const pointHitsExpandedBuilding = (point: Vec2, padding: number): boolean =>
-  CITY_MAP.buildings.some((buildingZone) => {
-    const building = getBuildingCollisionRect(buildingZone);
-    return (
-      point.x >= building.x - padding &&
-      point.x <= building.x + building.width + padding &&
-      point.y >= building.y - padding &&
-      point.y <= building.y + building.height + padding
-    );
-  });
+  getNearbyBuildingCollisionRects(point.x, point.y, padding).some((building) => (
+    point.x >= building.x - padding &&
+    point.x <= building.x + building.width + padding &&
+    point.y >= building.y - padding &&
+    point.y <= building.y + building.height + padding
+  ));
 
 const pathBlockedByBuildings = (from: Vec2, to: Vec2, padding: number): boolean => {
   const span = distance(from, to);
@@ -273,6 +269,22 @@ export const spawnEnemy = (
   };
 };
 
+const findClosestPlayer = (enemy: EnemyState, players: PlayerState[]): PlayerState => {
+  let closestPlayer = players[0]!;
+  let closestDistance = distance(enemy, closestPlayer);
+
+  for (let index = 1; index < players.length; index += 1) {
+    const candidate = players[index]!;
+    const candidateDistance = distance(enemy, candidate);
+    if (candidateDistance < closestDistance) {
+      closestPlayer = candidate;
+      closestDistance = candidateDistance;
+    }
+  }
+
+  return closestPlayer;
+};
+
 export const updateEnemies = (
   enemies: EnemyState[],
   players: PlayerState[],
@@ -284,6 +296,13 @@ export const updateEnemies = (
 ): ProjectileState[] => {
   const projectiles: ProjectileState[] = [];
   const effectiveFireRate = Math.max(0.25, settings.enemyFireRateMultiplier);
+  const livePlayers = players.filter((player) => !player.destroyed);
+  if (livePlayers.length === 0) {
+    return projectiles;
+  }
+
+  const nonGhostPlayers = livePlayers.filter((player) => player.ghostTimer <= 0);
+  const targetCandidates = nonGhostPlayers.length > 0 ? nonGhostPlayers : livePlayers;
 
   for (const enemy of enemies) {
     if (enemy.destroyed) {
@@ -291,16 +310,7 @@ export const updateEnemies = (
     }
 
     enemy.weaponCooldown = Math.max(0, enemy.weaponCooldown - dt);
-    const livePlayers = players.filter((player) => !player.destroyed);
-    if (livePlayers.length === 0) {
-      continue;
-    }
-
-    const targetPool = livePlayers.filter((player) => player.ghostTimer <= 0);
-    const targetCandidates = targetPool.length > 0 ? targetPool : livePlayers;
-    const target = targetCandidates.reduce((best, player) =>
-      distance(enemy, player) < distance(enemy, best) ? player : best
-    );
+    const target = findClosestPlayer(enemy, targetCandidates);
     enemy.targetPlayerId = target.id;
 
     const brain = brains.get(enemy.id) ?? createEnemyBrain(enemy);

@@ -1,5 +1,5 @@
 import { GAME_CONFIG } from "../shared/config/gameConfig";
-import type { PlayerState, EnemyState } from "../shared/model/types";
+import type { PlayerState } from "../shared/model/types";
 import { calculateSlipAngle } from "../shared/utils/math";
 
 /**
@@ -25,17 +25,21 @@ export class TireTrackManager {
    * Nur für Spieler-Fahrzeuge, nicht für Gegner
    */
   public updateTracks(
-    vehicles: (PlayerState | EnemyState)[],
+    players: PlayerState[],
     nowMs: number
   ): void {
-    // Clean expired tracks
-    this.marks = this.marks.filter((mark) => mark.expiresAt > nowMs);
-
-    // Update tracks only for player vehicles
-    for (const vehicle of vehicles) {
-      if (vehicle.type === "player") {
-        this.updateVehicleTrack(vehicle as PlayerState, nowMs);
+    let writeIndex = 0;
+    for (let readIndex = 0; readIndex < this.marks.length; readIndex += 1) {
+      const mark = this.marks[readIndex];
+      if (mark && mark.expiresAt > nowMs) {
+        this.marks[writeIndex] = mark;
+        writeIndex += 1;
       }
+    }
+    this.marks.length = writeIndex;
+
+    for (const vehicle of players) {
+      this.updateVehicleTrack(vehicle, nowMs);
     }
   }
 
@@ -138,6 +142,3 @@ export const drawTireTrack = (
 
   ctx.restore();
 };
-
-
-
