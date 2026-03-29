@@ -132,6 +132,8 @@ const OPEN_LOT_CELLS = new Set([
   cellKey(25, 21)
 ]);
 
+export const SUSHI_SHOP_BUILDING_ID = "b-14-14-b";
+
 const createBuildingZone = (
   id: string,
   col: number,
@@ -205,6 +207,17 @@ for (let row = 0; row < MAP_HEIGHT_TILES; row += 1) {
   }
 }
 
+const sushiShopBuilding = buildings.find((building) => building.id === SUSHI_SHOP_BUILDING_ID);
+const dispatchPoint: CirclePoi = sushiShopBuilding
+  ? {
+      id: "dispatch-central",
+      label: "Sushi Shop",
+      x: sushiShopBuilding.x + sushiShopBuilding.width - Math.min(30, sushiShopBuilding.width * 0.35),
+      y: sushiShopBuilding.y + sushiShopBuilding.height * 0.72,
+      radius: 96
+    }
+  : circlePoi("dispatch-central", "Sushi Shop", 15, 13, 96);
+
 export const CITY_MAP: WorldMapData = {
   width: TILE_SIZE * MAP_WIDTH_TILES,
   height: TILE_SIZE * MAP_HEIGHT_TILES,
@@ -227,7 +240,7 @@ export const CITY_MAP: WorldMapData = {
     { id: "boost-terminal", x: tile(20) + 24, y: tile(20) + 30, width: tile(4) - 48, height: 196, heading: 0 }
   ],
   dispatchPoints: [
-    circlePoi("dispatch-central", "Civic Dispatch", 15, 13, 112)
+    dispatchPoint
   ],
   deliveryPoints: [
     circlePoi("delivery-old-town", "Old Town Corner", 1, 1, 110),
@@ -261,6 +274,9 @@ export const findPoiById = (id: string): CirclePoi | undefined =>
     ...CITY_MAP.deliveryPoints,
     ...CITY_MAP.enemyHotspots
   ].find((poi) => poi.id === id);
+
+export const findBuildingById = (id: string): RectZone | undefined =>
+  CITY_MAP.buildings.find((building) => building.id === id);
 
 export const findNearestNavigationNode = (position: Vec2): NavigationNode =>
   CITY_MAP.navigationNodes.reduce((best, node) =>

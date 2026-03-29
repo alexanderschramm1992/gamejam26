@@ -218,13 +218,19 @@ const updateOverlay = (): void => {
 
   const player = snapshot.players.find((candidate) => candidate.id === localPlayerId);
   const missionText =
-    snapshot.mission.status === "ready"
-      ? "Order waiting at dispatch"
-      : snapshot.mission.status === "active"
-        ? `Live order ${snapshot.mission.id}`
-        : "Dispatch cooling down";
+    snapshot.team.winnerName
+      ? `Winner ${snapshot.team.winnerName}`
+      : snapshot.mission.status === "ready"
+        ? "Order waiting at sushi shop"
+        : snapshot.mission.status === "loading"
+          ? "Order is loading"
+          : snapshot.mission.status === "active"
+            ? `Live order ${snapshot.mission.id}`
+            : snapshot.mission.status === "unloading"
+              ? "Order is unloading"
+              : "Dispatch cooling down";
   const playerText = player
-    ? `${formatPlayerName(player.name, player.id)} | hull ${player.health.toFixed(0)} | battery ${player.battery.toFixed(0)}`
+    ? `${formatPlayerName(player.name, player.id)} | hull ${player.health.toFixed(0)} | battery ${player.battery.toFixed(0)} | points ${player.score} | deliveries ${player.deliveriesCompleted}/${snapshot.team.deliveriesToWin}`
     : "Spectating sync";
   const nextStatusText = `${missionText}
 ${playerText}
@@ -313,6 +319,15 @@ window.addEventListener("keydown", (event) => {
   }
 
   setAdminMenuOpen(!adminMenu.isOpen());
+  event.preventDefault();
+});
+
+window.addEventListener("keydown", (event) => {
+  if (event.code !== "KeyH" || event.repeat || !vehicleSelectionConfirmed || gameOverOverlay.isOpen()) {
+    return;
+  }
+
+  audio.playHonk();
   event.preventDefault();
 });
 

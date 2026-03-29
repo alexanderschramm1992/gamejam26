@@ -92,7 +92,11 @@ export const GAME_CONFIG = {
   mission: {
     baseReward: 150,
     baseTimeLimit: 70,
-    cooldown: 5
+    cooldown: 5,
+    transferDuration: 1.5,
+    cargoCount: 10,
+    deliveriesToWin: 3,
+    interactionDistanceMultiplier: 3.6
   },
   enemies: {
     spawnInterval: 2.5,        // Sekunden zwischen Gegner-Spawns

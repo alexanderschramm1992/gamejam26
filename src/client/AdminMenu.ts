@@ -22,6 +22,12 @@ const formatSettingValue = (key: keyof AdminSettings, value: number): string => 
   if (definition.format === "battery") {
     return `${Math.round(value)}`;
   }
+  if (definition.format === "seconds") {
+    return `${value.toFixed(1)}s`;
+  }
+  if (definition.format === "integer") {
+    return `${Math.round(value)}`;
+  }
   return `${value.toFixed(1)}x`;
 };
 

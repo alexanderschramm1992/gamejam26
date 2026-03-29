@@ -105,7 +105,7 @@ export class GameOverOverlay {
 
   private renderContent(respawnTimer: number): void {
     this.titleEl.textContent = "Game Over";
-    this.messageEl.textContent = "Dein Lieferwagen ist schrottreif.";
+    this.messageEl.textContent = "Dein Lieferwagen ist schrottreif. 500 Punkte wurden abgezogen.";
     this.statusEl.textContent = this.respawnReady
       ? "Fahrzeug steht wieder bereit. Druecke Neu starten."
       : `Respawn in ${respawnTimer.toFixed(1)}s`;

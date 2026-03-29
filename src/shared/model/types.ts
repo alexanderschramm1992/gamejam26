@@ -65,6 +65,7 @@ export interface PlayerState extends VehicleState {
   color: string;
   connected: boolean;
   score: number;
+  deliveriesCompleted: number;
   respawnTimer: number;
   ghostTimer: number;
   lastProcessedInput: number;
@@ -91,7 +92,7 @@ export interface ProjectileState {
   life: number;
 }
 
-export type MissionStatus = "ready" | "active" | "cooldown";
+export type MissionStatus = "ready" | "loading" | "active" | "unloading" | "cooldown";
 
 export interface MissionState {
   id: string;
@@ -103,6 +104,9 @@ export interface MissionState {
   reward: number;
   timeLimit: number;
   timeRemaining: number;
+  transferDuration: number;
+  transferRemaining: number;
+  cargoCount: number;
   cooldownRemaining: number;
 }
 
@@ -110,6 +114,9 @@ export interface TeamState {
   deliveries: number;
   score: number;
   danger: number;
+  deliveriesToWin: number;
+  winnerPlayerId: string | null;
+  winnerName: string | null;
 }
 
 export interface AdminSettings {
@@ -122,6 +129,8 @@ export interface AdminSettings {
   enemySpawnRateMultiplier: number;
   enemyFireRateMultiplier: number;
   chargeRateMultiplier: number;
+  deliveryTransferDuration: number;
+  deliveriesToWin: number;
   playerDamageMultiplier: number;
   playerMaxBattery: number;
   playerSteeringMultiplier: number;

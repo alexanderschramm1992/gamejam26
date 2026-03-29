@@ -46,6 +46,7 @@ const neutralInput: PlayerInput = {
 };
 
 const DRAIN_BEAM_RANGE_MULTIPLIER = 3.6;
+const DEATH_SCORE_PENALTY = 500;
 
 export class GameServer {
   private readonly io: SocketServer;
@@ -55,7 +56,14 @@ export class GameServer {
   private enemies: EnemyState[] = [];
   private projectiles: ProjectileState[] = [];
   private mission: MissionState = createMission(0);
-  private readonly team: TeamState = { deliveries: 0, score: 0, danger: 0 };
+  private readonly team: TeamState = {
+    deliveries: 0,
+    score: 0,
+    danger: 0,
+    deliveriesToWin: DEFAULT_ADMIN_SETTINGS.deliveriesToWin,
+    winnerPlayerId: null,
+    winnerName: null
+  };
   private readonly recentEvents: WorldEvent[] = [];
   private tickCounter = 0;
   private entityCounter = 0;
@@ -148,6 +156,7 @@ export class GameServer {
       destroyed: false,
       connected: true,
       score: 0,
+      deliveriesCompleted: 0,
       respawnTimer: 0,
       ghostTimer: 0,
       lastProcessedInput: 0
@@ -249,9 +258,18 @@ export class GameServer {
         this.pushEvent("boost", `${player.name} hit a boost lane`, player.x, player.y, player.id);
       }
 
-      if (input.interact && this.mission.status === "ready" && isPlayerAtDispatch(player)) {
-        acceptMission(this.mission, player.id);
-        this.pushEvent("mission-accepted", `${player.name} accepted ${this.mission.id}`, player.x, player.y, player.id);
+      if (!this.team.winnerPlayerId && this.mission.status === "ready" && isPlayerAtDispatch(player)) {
+        acceptMission(this.mission, player.id, this.adminSettings.deliveryTransferDuration);
+        this.pushEvent("mission-accepted", `${player.name} started loading sushi`, player.x, player.y, player.id);
+      }
+
+      if (
+        !this.team.winnerPlayerId &&
+        this.mission.status === "active" &&
+        this.mission.acceptedBy === player.id &&
+        isPlayerAtDestination(this.mission, player)
+      ) {
+        this.beginMissionUnloading(player);
       }
 
       if (player.health <= 0) {
@@ -378,29 +396,62 @@ export class GameServer {
   }
 
   private updateMission(dt: number): void {
+    if (this.team.winnerPlayerId) {
+      return;
+    }
+
     updateMissionTimers(this.mission, dt);
+    const carrier = this.mission.acceptedBy ? this.players.get(this.mission.acceptedBy) ?? null : null;
+
+    if (this.mission.status === "loading") {
+      if (!carrier || carrier.destroyed) {
+        this.resetMissionToReady();
+      } else if (!isPlayerAtDispatch(carrier)) {
+        this.resetMissionToReady(`${carrier.name} moved away from the sushi shop`);
+      } else if (this.mission.transferRemaining <= 0) {
+        this.mission.status = "active";
+        this.mission.transferRemaining = 0;
+        this.mission.timeRemaining = this.mission.timeLimit;
+        this.pushEvent("mission-accepted", `${carrier.name} loaded 10 sushi`, carrier.x, carrier.y, carrier.id);
+      }
+    }
 
     if (this.mission.status === "active") {
-      const players = Array.from(this.players.values()).filter((player) => !player.destroyed);
-      const finisher = players.find((player) => isPlayerAtDestination(this.mission, player));
-      if (finisher) {
-        finisher.score += this.mission.reward;
-        this.team.deliveries += 1;
-        this.team.score += this.mission.reward;
-        this.team.danger += 1;
-        this.pushEvent("mission-completed", `${finisher.name} delivered the sushi set`, finisher.x, finisher.y, finisher.id);
-        this.mission.status = "cooldown";
-        this.mission.cooldownRemaining = GAME_CONFIG.mission.cooldown;
+      if (!carrier || carrier.destroyed) {
+        this.resetMissionToReady();
+      } else if (isPlayerAtDestination(this.mission, carrier)) {
+        this.beginMissionUnloading(carrier);
       } else if (this.mission.timeRemaining <= 0) {
         this.team.danger += 1;
         this.pushEvent("mission-failed", `${this.mission.id} expired`, undefined, undefined, this.mission.id);
         this.mission.status = "cooldown";
+        this.mission.acceptedBy = null;
+        this.mission.transferRemaining = 0;
         this.mission.cooldownRemaining = GAME_CONFIG.mission.cooldown;
+      }
+    }
+
+    if (this.mission.status === "unloading") {
+      if (!carrier || carrier.destroyed) {
+        this.resetMissionToReady();
+      } else if (!isPlayerAtDestination(this.mission, carrier)) {
+        this.mission.status = "active";
+        this.mission.transferRemaining = 0;
+      } else if (this.mission.timeRemaining <= 0) {
+        this.team.danger += 1;
+        this.pushEvent("mission-failed", `${this.mission.id} expired at the drop-off`, carrier.x, carrier.y, carrier.id);
+        this.mission.status = "cooldown";
+        this.mission.acceptedBy = null;
+        this.mission.transferRemaining = 0;
+        this.mission.cooldownRemaining = GAME_CONFIG.mission.cooldown;
+      } else if (this.mission.transferRemaining <= 0) {
+        this.completeMission(carrier);
       }
     }
 
     if (this.mission.status === "cooldown" && this.mission.cooldownRemaining <= 0) {
       this.mission = createMission(this.team.deliveries + this.team.danger);
+      this.mission.transferDuration = this.adminSettings.deliveryTransferDuration;
     }
   }
 
@@ -461,6 +512,13 @@ export class GameServer {
     player.vx = 0;
     player.vy = 0;
     player.driveVelocity = 0;
+    player.score -= DEATH_SCORE_PENALTY;
+    this.team.score -= DEATH_SCORE_PENALTY;
+    this.pushEvent("hit", `${player.name} lost ${DEATH_SCORE_PENALTY} points`, player.x, player.y, player.id);
+
+    if (this.mission.acceptedBy === player.id && this.mission.status !== "cooldown") {
+      this.resetMissionToReady(`${player.name} dropped the sushi order`);
+    }
   }
 
   private respawnPlayer(player: PlayerState): void {
@@ -519,6 +577,8 @@ export class GameServer {
     let batteryChanged = false;
     let healthChanged = false;
     let spawnRulesChanged = false;
+    let deliveriesToWinChanged = false;
+    let transferDurationChanged = false;
 
     for (const [rawKey, rawValue] of Object.entries(patch)) {
       if (!(rawKey in this.adminSettings) || typeof rawValue !== "number" || !Number.isFinite(rawValue)) {
@@ -537,6 +597,8 @@ export class GameServer {
       healthChanged = healthChanged || key === "enemyHealthMultiplier";
       spawnRulesChanged =
         spawnRulesChanged || key === "enemyCountMultiplier" || key === "enemySpawnRateMultiplier";
+      deliveriesToWinChanged = deliveriesToWinChanged || key === "deliveriesToWin";
+      transferDurationChanged = transferDurationChanged || key === "deliveryTransferDuration";
     }
 
     if (!changed) {
@@ -551,6 +613,13 @@ export class GameServer {
     }
     if (spawnRulesChanged) {
       this.spawnTimer = Math.min(this.spawnTimer, this.getEnemySpawnInterval());
+    }
+    if (deliveriesToWinChanged) {
+      this.team.deliveriesToWin = this.adminSettings.deliveriesToWin;
+      this.syncVictoryStateFromScores();
+    }
+    if (transferDurationChanged) {
+      this.syncMissionTransferDuration();
     }
 
     this.broadcastAdminState();
@@ -609,6 +678,103 @@ export class GameServer {
       radius: base.radius,
       collisionDamage: base.collisionDamage
     };
+  }
+
+  private beginMissionUnloading(player: PlayerState): void {
+    if (this.mission.status !== "active" || this.mission.acceptedBy !== player.id) {
+      return;
+    }
+
+    this.mission.status = "unloading";
+    this.mission.transferDuration = this.adminSettings.deliveryTransferDuration;
+    this.mission.transferRemaining = this.adminSettings.deliveryTransferDuration;
+    this.pushEvent("mission-accepted", `${player.name} started unloading`, player.x, player.y, player.id);
+
+    if (this.mission.transferRemaining <= 0) {
+      this.completeMission(player);
+    }
+  }
+
+  private completeMission(player: PlayerState): void {
+    player.score += this.mission.reward;
+    player.deliveriesCompleted += 1;
+    this.team.deliveries += 1;
+    this.team.score += this.mission.reward;
+    this.team.danger += 1;
+    this.pushEvent("mission-completed", `${player.name} delivered the sushi set`, player.x, player.y, player.id);
+
+    if (player.deliveriesCompleted >= this.team.deliveriesToWin) {
+      this.declareWinner(player);
+      return;
+    }
+
+    this.mission.status = "cooldown";
+    this.mission.acceptedBy = null;
+    this.mission.timeRemaining = 0;
+    this.mission.transferRemaining = 0;
+    this.mission.cooldownRemaining = GAME_CONFIG.mission.cooldown;
+  }
+
+  private declareWinner(player: PlayerState): void {
+    this.team.winnerPlayerId = player.id;
+    this.team.winnerName = player.name;
+    this.pushEvent(
+      "mission-completed",
+      `${player.name} wins with ${player.deliveriesCompleted} deliveries`,
+      player.x,
+      player.y,
+      player.id
+    );
+    this.mission.status = "cooldown";
+    this.mission.acceptedBy = null;
+    this.mission.timeRemaining = 0;
+    this.mission.transferRemaining = 0;
+    this.mission.cooldownRemaining = 0;
+  }
+
+  private resetMissionToReady(reason?: string): void {
+    const previousCarrierId = this.mission.acceptedBy;
+    this.mission.status = "ready";
+    this.mission.acceptedBy = null;
+    this.mission.timeRemaining = 0;
+    this.mission.transferDuration = this.adminSettings.deliveryTransferDuration;
+    this.mission.transferRemaining = 0;
+    this.mission.cooldownRemaining = 0;
+
+    if (!reason) {
+      return;
+    }
+
+    const carrier = previousCarrierId ? this.players.get(previousCarrierId) : null;
+    this.pushEvent("mission-failed", reason, carrier?.x, carrier?.y, previousCarrierId ?? this.mission.id);
+  }
+
+  private syncVictoryStateFromScores(): void {
+    if (this.team.winnerPlayerId) {
+      return;
+    }
+
+    const winner = Array.from(this.players.values())
+      .sort((a, b) => b.deliveriesCompleted - a.deliveriesCompleted || b.score - a.score)
+      .find((player) => player.deliveriesCompleted >= this.team.deliveriesToWin);
+
+    if (winner) {
+      this.declareWinner(winner);
+    }
+  }
+
+  private syncMissionTransferDuration(): void {
+    const nextDuration = this.adminSettings.deliveryTransferDuration;
+    const previousDuration = this.mission.transferDuration;
+
+    if (this.mission.status === "loading" || this.mission.status === "unloading") {
+      const progress = previousDuration > 0 ? 1 - this.mission.transferRemaining / previousDuration : 1;
+      this.mission.transferDuration = nextDuration;
+      this.mission.transferRemaining = Math.max(0, nextDuration * (1 - progress));
+      return;
+    }
+
+    this.mission.transferDuration = nextDuration;
   }
 
   private pushEvent(

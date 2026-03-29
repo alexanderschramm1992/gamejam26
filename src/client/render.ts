@@ -72,6 +72,7 @@ export const setLocalPlayerCarAsset = async (src: string): Promise<void> => {
 let buildingImages = new Map<string, HTMLImageElement>();
 let pavementTileImage: HTMLImageElement | null = null;
 let targetPointerImage: HTMLImageElement | null = null;
+let sushiImage: HTMLImageElement | null = null;
 let weaponImage: HTMLImageElement | null = null;
 let bulletImage: HTMLImageElement | null = null;
 let pavementPatterns = new WeakMap<CanvasRenderingContext2D, CanvasPattern | null>();
@@ -82,6 +83,7 @@ export const loadHudAssets = async (): Promise<void> => {
     loadImage("/assets/weapon_systems/MG.png"),
     loadImage("/assets/weapon_systems/Bullet_MG.png")
   ]);
+  sushiImage = targetPointerImage;
 };
 
 export const loadBuildingAssets = async (): Promise<void> => {
@@ -214,6 +216,9 @@ export interface DrainBeamVisual {
   targetY: number;
   expiresAt: number;
 }
+
+const easeInOutQuad = (value: number): number =>
+  value < 0.5 ? 2 * value * value : 1 - Math.pow(-2 * value + 2, 2) / 2;
 
 const panel = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number): void => {
   ctx.fillStyle = "rgba(5, 16, 24, 0.72)";
@@ -365,6 +370,60 @@ const drawDrainBeam = (
   ctx.beginPath();
   ctx.arc(beam.targetX, beam.targetY, 4 + remaining * 3, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
+};
+
+const drawSushiTransfer = (
+  ctx: CanvasRenderingContext2D,
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+  progress: number,
+  cargoCount: number,
+  nowMs: number
+): void => {
+  if (!sushiImage || cargoCount <= 0) {
+    return;
+  }
+
+  const count = Math.min(cargoCount, 10);
+  const deltaX = endX - startX;
+  const deltaY = endY - startY;
+  const distance = Math.hypot(deltaX, deltaY) || 1;
+  const normalX = -deltaY / distance;
+  const normalY = deltaX / distance;
+  const rotation = Math.atan2(deltaY, deltaX) + Math.PI / 2;
+
+  ctx.save();
+  ctx.shadowBlur = 16;
+  ctx.shadowColor = "rgba(255, 214, 120, 0.85)";
+
+  for (let index = 0; index < count; index += 1) {
+    const trailOffset = index * 0.065;
+    const travel = clamp((progress - trailOffset) / Math.max(0.35, 1 - trailOffset), 0, 1);
+    if (travel <= 0) {
+      continue;
+    }
+
+    const eased = easeInOutQuad(travel);
+    const sway = Math.sin(nowMs / 140 + index * 1.7 + eased * Math.PI * 2) * (1 - eased) * 16;
+    const arc = Math.sin(eased * Math.PI) * (index % 2 === 0 ? 9 : -9);
+    const x = startX + deltaX * eased + normalX * (sway + arc);
+    const y = startY + deltaY * eased + normalY * (sway + arc);
+    const alpha = 0.38 + eased * 0.62;
+    const size = 18;
+    const drawWidth = size * (sushiImage.width / sushiImage.height);
+    const wobble = Math.sin(nowMs / 200 + index) * 0.14;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rotation + wobble);
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(sushiImage, -drawWidth / 2, -size / 2, drawWidth, size);
+    ctx.restore();
+  }
+
   ctx.restore();
 };
 
@@ -593,6 +652,9 @@ export const renderGame = (
   });
 
   const destination = findPoiById(snapshot.mission.destinationId);
+  const carrier = snapshot.mission.acceptedBy
+    ? snapshot.players.find((player) => player.id === snapshot.mission.acceptedBy) ?? null
+    : null;
   if (destination && pointIntersectsBounds(destination.x, destination.y, destination.radius, viewBounds)) {
     ctx.save();
     ctx.strokeStyle = snapshot.mission.status === "active" ? "#ffcf69" : "#ff7ad1";
@@ -648,6 +710,41 @@ export const renderGame = (
     }
   }
 
+  if (carrier && (snapshot.mission.status === "loading" || snapshot.mission.status === "unloading")) {
+    const carrierVisual = visuals.players.get(carrier.id);
+    const dispatch = findPoiById(snapshot.mission.dispatchId);
+    const delivery = findPoiById(snapshot.mission.destinationId);
+    const progress = snapshot.mission.transferDuration <= 0
+      ? 1
+      : clamp(1 - snapshot.mission.transferRemaining / snapshot.mission.transferDuration, 0, 1);
+
+    if (carrierVisual && snapshot.mission.status === "loading" && dispatch) {
+      drawSushiTransfer(
+        ctx,
+        dispatch.x,
+        dispatch.y,
+        carrierVisual.x,
+        carrierVisual.y,
+        progress,
+        snapshot.mission.cargoCount,
+        nowMs
+      );
+    }
+
+    if (carrierVisual && snapshot.mission.status === "unloading" && delivery) {
+      drawSushiTransfer(
+        ctx,
+        carrierVisual.x,
+        carrierVisual.y,
+        delivery.x,
+        delivery.y,
+        progress,
+        snapshot.mission.cargoCount,
+        nowMs
+      );
+    }
+  }
+
   for (const beam of drainBeams) {
     drawDrainBeam(ctx, beam, nowMs);
   }
@@ -664,9 +761,11 @@ export const renderGame = (
       return;
     }
 
-    const targetPoi = mission.status === "active"
+    const targetPoi = mission.status === "active" || mission.status === "unloading"
       ? findPoiById(mission.destinationId)
-      : findPoiById(mission.dispatchId);
+      : mission.status === "ready" || mission.status === "loading"
+        ? findPoiById(mission.dispatchId)
+        : null;
 
     if (!targetPoi) {
       return;
@@ -690,7 +789,7 @@ export const renderGame = (
 
   drawTargetIndicator(ctx, width, height, localPlayer, snapshot.mission);
 
-  panel(ctx, 22, 22, 260, 112);
+  panel(ctx, 22, 22, 292, 132);
   ctx.fillStyle = "#f4f8ff";
   ctx.textAlign = "left";
   ctx.font = "700 17px Trebuchet MS";
@@ -698,14 +797,32 @@ export const renderGame = (
   ctx.font = "13px Trebuchet MS";
   ctx.fillStyle = "#9bb3c5";
   const missionTitle = destination ? destination.label : "Dispatch";
-  const statusText = snapshot.mission.status === "ready"
-    ? "Return to dispatch and press E"
-    : snapshot.mission.status === "active"
-      ? `Deliver to ${missionTitle}`
-      : "Next order loading";
+  const winnerText = snapshot.team.winnerName ? `${snapshot.team.winnerName} wins the round` : null;
+  const statusText = winnerText
+    ?? (snapshot.mission.status === "ready"
+      ? "Drive close to the sushi shop"
+      : snapshot.mission.status === "loading"
+        ? "Beladen laeuft"
+        : snapshot.mission.status === "active"
+          ? `Deliver to ${missionTitle}`
+          : snapshot.mission.status === "unloading"
+            ? `Entlade bei ${missionTitle}`
+            : "Next order loading");
   ctx.fillText(statusText, 42, 72);
-  ctx.fillText(`Time ${snapshot.mission.timeRemaining.toFixed(0)}s`, 42, 94);
-  ctx.fillText(`Score ${snapshot.team.score}  Deliveries ${snapshot.team.deliveries}  Danger ${snapshot.team.danger}`, 42, 116);
+  const timingText = snapshot.mission.status === "loading" || snapshot.mission.status === "unloading"
+    ? `Transfer ${snapshot.mission.transferRemaining.toFixed(1)}s`
+    : snapshot.mission.status === "active"
+      ? `Time ${snapshot.mission.timeRemaining.toFixed(0)}s`
+      : `Goal ${snapshot.team.deliveriesToWin} deliveries`;
+  ctx.fillText(timingText, 42, 94);
+  ctx.fillText(`Total ${snapshot.team.score}  Orders ${snapshot.team.deliveries}  Danger ${snapshot.team.danger}`, 42, 116);
+  if (snapshot.team.winnerName) {
+    ctx.fillStyle = "#ffcf69";
+    ctx.fillText(`Winner target reached: ${snapshot.team.deliveriesToWin}/${snapshot.team.deliveriesToWin}`, 42, 138);
+  } else {
+    ctx.fillStyle = "#9bb3c5";
+    ctx.fillText(`Cargo ${snapshot.mission.cargoCount} sushi  Win at ${snapshot.team.deliveriesToWin}`, 42, 138);
+  }
 
   if (localPlayer) {
     panel(ctx, 22, height - 112, 270, 90);
@@ -735,6 +852,34 @@ export const renderGame = (
       ctx.fillStyle = "#ffcf69";
       ctx.fillText("Charging on station", 42, height - 20);
     }
+  }
+
+  const scoreboardPlayers = [...snapshot.players].sort((a, b) =>
+    b.deliveriesCompleted - a.deliveriesCompleted || b.score - a.score || a.name.localeCompare(b.name)
+  );
+  const scoreboardHeight = 56 + scoreboardPlayers.length * 24 + (snapshot.team.winnerName ? 24 : 0);
+  panel(ctx, width - 292, 92, 270, scoreboardHeight);
+  ctx.fillStyle = "#f4f8ff";
+  ctx.textAlign = "left";
+  ctx.font = "700 15px Trebuchet MS";
+  ctx.fillText("Multiplayer Scores", width - 272, 116);
+  ctx.font = "12px Trebuchet MS";
+  scoreboardPlayers.forEach((player, index) => {
+    const y = 140 + index * 24;
+    const isWinner = player.id === snapshot.team.winnerPlayerId;
+    ctx.fillStyle = isWinner ? "#ffcf69" : player.id === localPlayerId ? "#58f0ff" : "#d7e7f5";
+    ctx.fillText(`${index + 1}. ${player.name}`, width - 272, y);
+    ctx.textAlign = "right";
+    ctx.fillText(
+      `${player.score} pts | ${player.deliveriesCompleted}/${snapshot.team.deliveriesToWin}`,
+      width - 40,
+      y
+    );
+    ctx.textAlign = "left";
+  });
+  if (snapshot.team.winnerName) {
+    ctx.fillStyle = "#ffcf69";
+    ctx.fillText(`Winner: ${snapshot.team.winnerName}`, width - 272, 140 + scoreboardPlayers.length * 24);
   }
 
   // Debug overlay

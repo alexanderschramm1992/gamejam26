@@ -24,6 +24,10 @@ export class AudioMixer {
   private currentGameMusicIndex = 0;
   private readonly gameMusicVolume = 0.24;
 
+  private readonly honkSound = new Audio("/sfx/honk.wav");
+  private readonly mgShotSound = new Audio("/sfx/mgShot.wav");
+  private readonly sampleVolume = 0.42;
+
   // Sound configuration - easily hand-tune these values
   public static readonly ENGINE_IDLE_FREQ = 20;      // Hz at rest
   public static readonly ENGINE_MAX_FREQ = 100;      // Hz at full speed
@@ -40,6 +44,11 @@ export class AudioMixer {
 
     window.addEventListener("pointerdown", enable, { passive: true });
     window.addEventListener("keydown", enable);
+
+    this.honkSound.preload = "auto";
+    this.honkSound.volume = this.sampleVolume;
+    this.mgShotSound.preload = "auto";
+    this.mgShotSound.volume = this.sampleVolume;
   }
 
   public enable(): void {
@@ -197,7 +206,7 @@ export class AudioMixer {
     for (const event of events) {
       switch (event.type) {
         case "shot":
-          this.playTone(540, 0.06, "square", 0.03);
+          this.playMgShot();
           break;
         case "hit":
           this.playTone(160, 0.08, "sawtooth", 0.04);
@@ -228,6 +237,19 @@ export class AudioMixer {
           break;
       }
     }
+  }
+
+  public playHonk(): void {
+    this.playAudioSample(this.honkSound);
+  }
+
+  public playMgShot(): void {
+    this.playAudioSample(this.mgShotSound);
+  }
+
+  private playAudioSample(audio: HTMLAudioElement): void {
+    audio.currentTime = 0;
+    void audio.play().catch(() => undefined);
   }
 
   private playTone(
