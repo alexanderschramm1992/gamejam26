@@ -1,5 +1,5 @@
 import { BUILDING_ASSETS, getBuildingAsset, getBuildingCollisionRect, getBuildingDrawRect } from "../shared/map/buildingAssets";
-import { CITY_MAP, findPoiById } from "../shared/map/cityMap";
+import { CITY_MAP, TILE_SIZE, findPoiById } from "../shared/map/cityMap";
 import type { EnemyState, GameSnapshot, PlayerState, ProjectileState, RectZone } from "../shared/model/types";
 import { clamp } from "../shared/utils/math";
 import type { AudioMixer } from "./AudioMixer";
@@ -69,6 +69,7 @@ export const setLocalPlayerCarAsset = async (src: string): Promise<void> => {
 };
 
 let buildingImages = new Map<string, HTMLImageElement>();
+let pavementTileImage: HTMLImageElement | null = null;
 let targetPointerImage: HTMLImageElement | null = null;
 
 export const loadHudAssets = async (): Promise<void> => {
@@ -76,10 +77,12 @@ export const loadHudAssets = async (): Promise<void> => {
 };
 
 export const loadBuildingAssets = async (): Promise<void> => {
-  const images = await Promise.all(
-    BUILDING_ASSETS.map(async (asset) => [asset.id, await loadImage(asset.src)] as const)
-  );
+  const [images, pavementTile] = await Promise.all([
+    Promise.all(BUILDING_ASSETS.map(async (asset) => [asset.id, await loadImage(asset.src)] as const)),
+    loadImage("/assets/street_tiles/none.png")
+  ]);
   buildingImages = new Map(images);
+  pavementTileImage = pavementTile;
 };
 
 const getBuildingImage = (building: RectZone): HTMLImageElement | null => {
@@ -97,6 +100,53 @@ const drawBuildingImage = (
 ): void => {
   const drawRect = getBuildingDrawRect(building);
   ctx.drawImage(buildingImage, drawRect.x, drawRect.y, drawRect.width, drawRect.height);
+};
+
+const getBuildingLotRect = (buildingId: string): RectZone | null => {
+  const match = /^b-(\d+)-(\d+)-/.exec(buildingId);
+  if (!match) {
+    return null;
+  }
+
+  const col = Number(match[1]);
+  const row = Number(match[2]);
+  return {
+    id: `lot-${col}-${row}`,
+    x: col * TILE_SIZE + 12,
+    y: row * TILE_SIZE + 12,
+    width: TILE_SIZE - 24,
+    height: TILE_SIZE - 24
+  };
+};
+
+const getBuildingLots = (): RectZone[] => {
+  const lots = new Map<string, RectZone>();
+
+  for (const building of CITY_MAP.buildings) {
+    const lot = getBuildingLotRect(building.id);
+    if (!lot || lots.has(lot.id)) {
+      continue;
+    }
+    lots.set(lot.id, lot);
+  }
+
+  return Array.from(lots.values());
+};
+
+const drawPavedLot = (
+  ctx: CanvasRenderingContext2D,
+  lot: RectZone,
+  pavementPattern: CanvasPattern | null
+): void => {
+  ctx.save();
+  ctx.fillStyle = pavementPattern ?? '#8c8f93';
+  ctx.fillRect(lot.x, lot.y, lot.width, lot.height);
+  ctx.strokeStyle = 'rgba(23, 29, 36, 0.45)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(lot.x + 1, lot.y + 1, lot.width - 2, lot.height - 2);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+  ctx.strokeRect(lot.x + 8, lot.y + 8, lot.width - 16, lot.height - 16);
+  ctx.restore();
 };
 
 export interface VisualCache {
@@ -271,20 +321,33 @@ const drawWorldGeometry = (ctx: CanvasRenderingContext2D): void => {
 
   for (const waterZone of CITY_MAP.water) {
     ctx.save();
-    ctx.fillStyle = "#184f67";
+    ctx.fillStyle = "#0f2e3d";
     ctx.fillRect(waterZone.x, waterZone.y, waterZone.width, waterZone.height);
-    ctx.strokeStyle = "rgba(124, 214, 255, 0.22)";
-    ctx.lineWidth = 3;
-    for (let y = waterZone.y + 24; y < waterZone.y + waterZone.height; y += 72) {
+    ctx.fillStyle = "#1f6481";
+    ctx.fillRect(waterZone.x + 10, waterZone.y + 10, waterZone.width - 20, waterZone.height - 20);
+    ctx.strokeStyle = "rgba(171, 230, 255, 0.2)";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(waterZone.x + 16, waterZone.y + 16, waterZone.width - 32, waterZone.height - 32);
+
+    for (let y = waterZone.y + 48; y < waterZone.y + waterZone.height - 32; y += 96) {
       ctx.beginPath();
-      ctx.moveTo(waterZone.x + 20, y);
-      ctx.lineTo(waterZone.x + waterZone.width - 20, y + 10);
+      ctx.moveTo(waterZone.x + 40, y);
+      ctx.lineTo(waterZone.x + waterZone.width - 40, y + 8);
       ctx.stroke();
     }
-     ctx.restore();
-   }
+
+    ctx.fillStyle = "rgba(4, 20, 28, 0.18)";
+    ctx.fillRect(waterZone.x, waterZone.y, 24, waterZone.height);
+    ctx.fillRect(waterZone.x + waterZone.width - 24, waterZone.y, 24, waterZone.height);
+    ctx.restore();
+  }
 
   drawTiledRoads(ctx);
+
+  const pavementPattern = pavementTileImage ? ctx.createPattern(pavementTileImage, "repeat") : null;
+  for (const lot of getBuildingLots()) {
+    drawPavedLot(ctx, lot, pavementPattern);
+  }
 
   for (const bridge of CITY_MAP.bridges) {
     ctx.save();

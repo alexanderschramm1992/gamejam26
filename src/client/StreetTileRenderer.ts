@@ -4,7 +4,7 @@
  * Replaces geometric road drawing with tiled sprite rendering.
  */
 
-import { CITY_MAP } from "../shared/map/cityMap";
+import { CITY_MAP, TILE_SIZE } from "../shared/map/cityMap";
 
 export interface TileAsset {
   name: string;
@@ -37,7 +37,7 @@ const TILE_CATALOG: Record<string, string> = {
   none: "/assets/street_tiles/none.png"
 };
 
-const ROAD_TILE_SIZE = 256;
+const ROAD_TILE_SIZE = TILE_SIZE;
 const DIRECTION_ORDER = ["left", "right", "down", "up"] as const;
 type Direction = (typeof DIRECTION_ORDER)[number];
 
@@ -297,9 +297,3 @@ const drawRoadMarkings = (ctx: CanvasRenderingContext2D): void => {
     }
   }
 };
-
-
-
-
-
-
