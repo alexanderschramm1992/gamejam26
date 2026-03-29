@@ -75,6 +75,9 @@ const applyDynamics = (
   handbrake: boolean,
   dt: number
 ): void => {
+  // verhindere Lenkung im Stellstand
+  if (Math.abs(vehicle.driveVelocity) < 10) return
+
   // Verwende Handbremse-Lenkgeschwindigkeit wenn aktiviert, sonst normale Lenkgeschwindigkeit
   const turnSpeed = handbrake ? GAME_CONFIG.player.handbrakeTurnSpeed : tuning.turnSpeed;
   
