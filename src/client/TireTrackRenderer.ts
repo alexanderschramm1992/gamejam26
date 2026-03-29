@@ -69,9 +69,14 @@ export class TireTrackManager {
 
     // Create new track mark if spacing threshold is met
     if (currentDistance >= GAME_CONFIG.tireSlip.trailSpacing) {
+      // Position the track mark slightly behind the vehicle
+      const backwardDistance = 10;
+      const offsetX = -Math.cos(vehicle.rotation) * backwardDistance;
+      const offsetY = -Math.sin(vehicle.rotation) * backwardDistance;
+
       const mark: TireTrackMark = {
-        x: vehicle.x,
-        y: vehicle.y,
+        x: vehicle.x + offsetX,
+        y: vehicle.y + offsetY,
         rotation: vehicle.rotation,
         createdAt: nowMs,
         expiresAt: nowMs + GAME_CONFIG.tireSlip.durationMs
@@ -130,14 +135,14 @@ export const drawTireTrack = (
 
   // Left tire - quer zur Fahrtrichtung (X-Richtung statt Y)
   ctx.beginPath();
-  ctx.moveTo(-20, -trackSpacing);
-  ctx.lineTo(20, -trackSpacing);
+  ctx.moveTo(-12, -trackSpacing);
+  ctx.lineTo(12, -trackSpacing);
   ctx.stroke();
 
   // Right tire - quer zur Fahrtrichtung (X-Richtung statt Y)
   ctx.beginPath();
-  ctx.moveTo(-20, trackSpacing);
-  ctx.lineTo(20, trackSpacing);
+  ctx.moveTo(-12, trackSpacing);
+  ctx.lineTo(12, trackSpacing);
   ctx.stroke();
 
   ctx.restore();
