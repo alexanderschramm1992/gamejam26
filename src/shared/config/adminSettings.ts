@@ -2,7 +2,7 @@ import { GAME_CONFIG } from "./gameConfig";
 import type { AdminSettings } from "../model/types";
 
 export type AdminSettingCategory = "difficulty" | "driving";
-export type AdminSettingFormat = "multiplier" | "battery";
+export type AdminSettingFormat = "multiplier" | "battery" | "seconds" | "integer";
 
 export interface AdminSettingDefinition {
   category: AdminSettingCategory;
@@ -43,6 +43,8 @@ export const ADMIN_SETTING_ORDER: Array<keyof AdminSettings> = [
   "enemySpawnRateMultiplier",
   "enemyFireRateMultiplier",
   "chargeRateMultiplier",
+  "deliveryTransferDuration",
+  "deliveriesToWin",
   "playerDamageMultiplier",
   "playerMaxBattery",
   "playerSteeringMultiplier",
@@ -134,6 +136,24 @@ export const ADMIN_SETTING_DEFS: Record<keyof AdminSettings, AdminSettingDefinit
     step: 0.1,
     format: "multiplier"
   },
+  deliveryTransferDuration: {
+    category: "difficulty",
+    label: "Beladen / Entladen",
+    description: "Legt fest, wie lange die 10 Sushi beim Laden und Abliefern sichtbar wandern.",
+    min: 0,
+    max: 5,
+    step: 0.1,
+    format: "seconds"
+  },
+  deliveriesToWin: {
+    category: "difficulty",
+    label: "Lieferungen bis Sieg",
+    description: "Die erste Person, die diesen Wert erreicht, gewinnt die Runde.",
+    min: 1,
+    max: 10,
+    step: 1,
+    format: "integer"
+  },
   playerDamageMultiplier: {
     category: "difficulty",
     label: "Spielerschaden",
@@ -209,6 +229,8 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   enemySpawnRateMultiplier: 1,
   enemyFireRateMultiplier: 1,
   chargeRateMultiplier: 1,
+  deliveryTransferDuration: GAME_CONFIG.mission.transferDuration,
+  deliveriesToWin: GAME_CONFIG.mission.deliveriesToWin,
   playerDamageMultiplier: 1,
   playerMaxBattery: GAME_CONFIG.player.maxBattery,
   playerSteeringMultiplier: 1,

@@ -1,4 +1,5 @@
 import type { RectZone } from "../model/types";
+import { SUSHI_SHOP_BUILDING_ID } from "./cityMap";
 
 interface OpaqueBounds {
   left: number;
@@ -16,6 +17,13 @@ export interface BuildingAssetDefinition {
 }
 
 export const BUILDING_ASSETS: BuildingAssetDefinition[] = [
+  {
+    id: "sushi-shop",
+    src: "/assets/buildings/sushiShop.png",
+    width: 230,
+    height: 150,
+    opaqueBounds: { left: 0.03, top: 0.04, right: 0.97, bottom: 0.98 }
+  },
   {
     id: "medium-02",
     src: "/assets/buildings/DQ-SF_city_building_medium_02.png",
@@ -83,9 +91,14 @@ const hashString = (value: string): number => {
 };
 
 export const getBuildingAsset = (building: Pick<RectZone, "id" | "x" | "y">): BuildingAssetDefinition => {
+  if (building.id === SUSHI_SHOP_BUILDING_ID) {
+    return BUILDING_ASSETS[0]!;
+  }
+
   const key = building.id || `${building.x}-${building.y}`;
-  const index = hashString(key) % BUILDING_ASSETS.length;
-  return BUILDING_ASSETS[index]!;
+  const genericAssets = BUILDING_ASSETS.slice(1);
+  const index = hashString(key) % genericAssets.length;
+  return genericAssets[index]!;
 };
 
 export const getBuildingDrawRect = (building: RectZone): RectZone => {
