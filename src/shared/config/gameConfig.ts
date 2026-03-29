@@ -74,7 +74,11 @@ export const GAME_CONFIG = {
     brakeDragMin: 0.5,
     brakeDragMax: 0.96,
     handbrakeFrameFactor: 0.35,
-    minimumTurningVelocity: 8
+    minimumTurningVelocity: 8,
+    // Drift-Parameter für realistische Fahrtdynamik
+    driftResponse: 0.2, // Wie schnell die Fahrtrichtung dem Lenkwinkel folgt (0-1)
+    lateralGrip: 0.8, // Seitenhaftung: Wie gut das Fahrzeug bei Kurven hält (0-1)
+    angularVelocityMax: 3.2 // Max Rotationsgeschwindigkeit in Radianen pro Sekunde
   },
   combat: {
     projectileRadius: 5,

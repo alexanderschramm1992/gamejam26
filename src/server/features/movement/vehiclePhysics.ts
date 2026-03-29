@@ -12,6 +12,16 @@ export interface VehicleStepOptions {
   boosted: boolean;
 }
 
+/**
+ * OPTION 2: Klassisches Fahrzeug-Physik-Modell
+ * 
+ * Das System modelliert nun echte Fahrtdynamik mit Drift-Effekt:
+ * - rotation: Fahrzeug-Ausrichtung (visuell)
+ * - vx/vy: Echte Bewegungsvektoren (unabhängig von rotation)
+ * - Lenkung beeinflusst allmählich die Bewegungsrichtung, nicht sofort die Ausrichtung
+ * - Ermöglicht Driften: Fahrzeug kann sich in andere Richtung bewegen als es zeigt
+ */
+
 export const stepVehicle = (
   vehicle: VehicleState,
   { dt, input, tuning, lowBattery, crippledBattery, offRoad, boosted }: VehicleStepOptions
@@ -29,9 +39,16 @@ export const stepVehicle = (
   const forwardInput = clamp(input.throttle, -1, 1);
   const braking = input.brake;
 
+  // 1. Berechne Fahrtgeschwindigkeit (skalare "Triebkraft")
   applyAcceleration(vehicle, forwardInput, tuning, lowBatteryFactor, maxForward, maxReverse, dt, frameFactor);
-  applyTurning(vehicle, input.steer, tuning, braking, maxForward, dt);
+  
+  // 2. Bremsen wirken auf den Geschwindigkeitsvektor
   applyBrake(vehicle, braking, tuning, frameFactor);
+  
+  // 3. Lenkung und Drift-Dynamik
+  applyDynamics(vehicle, input.steer, tuning, braking, maxForward, dt);
+  
+  // 4. Position basierend auf echtem Bewegungsvektor aktualisieren
   applyMovement(vehicle, offRoad, dt);
 };
 
@@ -45,6 +62,7 @@ const applyAcceleration = (
   dt: number,
   frameFactor: number
 ): void => {
+  // driveVelocity ist hier ein interner Zustand für die Triebkraft (nicht direkt sichtbar)
   if (forwardInput > 0) {
     vehicle.driveVelocity += tuning.acceleration * forwardInput * lowBatteryFactor * dt;
   } else if (forwardInput < 0) {
@@ -54,31 +72,6 @@ const applyAcceleration = (
   }
 
   vehicle.driveVelocity = clamp(vehicle.driveVelocity, -maxReverse, maxForward);
-};
-
-const applyTurning = (
-  vehicle: VehicleState,
-  steer: number,
-  tuning: VehicleTuning,
-  braking: boolean,
-  maxForward: number,
-  dt: number
-): void => {
-  if (steer === 0 || Math.abs(vehicle.driveVelocity) < GAME_CONFIG.vehiclePhysics.minimumTurningVelocity) {
-    return;
-  }
-
-  const effectiveTurnSpeed = braking
-    ? tuning.turnSpeed * GAME_CONFIG.vehiclePhysics.brakingTurnSpeedMultiplier
-    : tuning.turnSpeed;
-
-  // Geschwindigkeitsabhängiger Wendekreis: Je höher die Geschwindigkeit, desto größer der Wendekreis
-  const speedFactor = clamp(Math.abs(vehicle.driveVelocity) / Math.max(80, maxForward), 0, 1);
-  const gripFactor = 1 - speedFactor * GAME_CONFIG.physics.turnSpeedScaling;
-  
-  vehicle.rotation = wrapAngle(
-    vehicle.rotation + steer * effectiveTurnSpeed * gripFactor * dt * Math.sign(vehicle.driveVelocity)
-  );
 };
 
 const applyBrake = (
@@ -96,11 +89,85 @@ const applyBrake = (
     GAME_CONFIG.vehiclePhysics.brakeDragMin,
     GAME_CONFIG.vehiclePhysics.brakeDragMax
   );
-  vehicle.driveVelocity *= brakeDrag;
-  vehicle.driveVelocity *= Math.pow(
+  
+  // Bremsen wirken auf den echten Geschwindigkeitsvektor
+  vehicle.vx *= brakeDrag;
+  vehicle.vy *= brakeDrag;
+  
+  // Handbrake verstärkt die Bremswirkung
+  const handbrakeMultiplier = Math.pow(
     tuning.handbrakeMultiplier,
     frameFactor * GAME_CONFIG.vehiclePhysics.handbrakeFrameFactor
   );
+  vehicle.vx *= handbrakeMultiplier;
+  vehicle.vy *= handbrakeMultiplier;
+};
+
+const applyDynamics = (
+  vehicle: VehicleState,
+  steer: number,
+  tuning: VehicleTuning,
+  braking: boolean,
+  maxForward: number,
+  dt: number
+): void => {
+  // Nutze driveVelocity als die primäre Geschwindigkeitsmagnitude
+  const driveSpeed = Math.abs(vehicle.driveVelocity);
+  
+  // Unter minimaler Geschwindigkeit kann nicht gelenkt werden
+  if (driveSpeed < GAME_CONFIG.vehiclePhysics.minimumTurningVelocity) {
+    // Wenn wir sehr langsam sind, richte die Fahrtrichtung sofort aus
+    if (driveSpeed > 0) {
+      const forward = fromAngle(vehicle.rotation);
+      vehicle.vx = forward.x * vehicle.driveVelocity;
+      vehicle.vy = forward.y * vehicle.driveVelocity;
+    }
+    return;
+  }
+
+  // Berechne die gewünschte Fahrtrichtung basierend auf Lenkung
+  const effectiveTurnSpeed = braking
+    ? tuning.turnSpeed * GAME_CONFIG.vehiclePhysics.brakingTurnSpeedMultiplier
+    : tuning.turnSpeed;
+
+  // Geschwindigkeitsabhängiger Wendekreis
+  const speedFactor = clamp(driveSpeed / Math.max(80, maxForward), 0, 1);
+  const gripFactor = 1 - speedFactor * GAME_CONFIG.physics.turnSpeedScaling;
+  
+  // Rotiere die Fahrzeugausrichtung basierend auf Lenkung
+  vehicle.rotation = wrapAngle(
+    vehicle.rotation + steer * effectiveTurnSpeed * gripFactor * dt * Math.sign(vehicle.driveVelocity)
+  );
+
+  // Drift-Effekt: Der Geschwindigkeitsvektor folgt der Rotation mit Verzögerung
+  // Das erzeugt Rutschen/Driften wenn das Fahrzeug schnell lenkt
+  const desiredDirection = fromAngle(vehicle.rotation);
+  
+  // Berechne die aktuelle Fahrtrichtung (normalisiert)
+  const currentVelocityMag = length({ x: vehicle.vx, y: vehicle.vy });
+  const currentDirection = currentVelocityMag > 0
+    ? { x: vehicle.vx / currentVelocityMag, y: vehicle.vy / currentVelocityMag }
+    : desiredDirection; // Fallback zur gewünschten Richtung
+  
+  // Interpoliere die Fahrtrichtung gegen die gewünschte Richtung
+  const driftResponse = GAME_CONFIG.vehiclePhysics.driftResponse;
+  const lateralGrip = GAME_CONFIG.vehiclePhysics.lateralGrip;
+  
+  const blendedDirection = {
+    x: currentDirection.x + (desiredDirection.x - currentDirection.x) * driftResponse * lateralGrip,
+    y: currentDirection.y + (desiredDirection.y - currentDirection.y) * driftResponse * lateralGrip
+  };
+  
+  // Normalisiere die Richtung und wende die aktuelle Geschwindigkeit an
+  const blendedLength = length(blendedDirection) || 1;
+  const normalizedBlended = {
+    x: blendedDirection.x / blendedLength,
+    y: blendedDirection.y / blendedLength
+  };
+  
+  // Wende driveVelocity als Magnitude an (das ist die beschleunigte Geschwindigkeit)
+  vehicle.vx = normalizedBlended.x * vehicle.driveVelocity;
+  vehicle.vy = normalizedBlended.y * vehicle.driveVelocity;
 };
 
 const applyMovement = (
@@ -108,12 +175,7 @@ const applyMovement = (
   offRoad: boolean,
   dt: number
 ): void => {
-  const forward = fromAngle(vehicle.rotation);
-  const forwardX = forward.x * vehicle.driveVelocity;
-  const forwardY = forward.y * vehicle.driveVelocity;
-
-  vehicle.vx = forwardX;
-  vehicle.vy = forwardY;
+  // Aktualisiere Position basierend auf echtem Geschwindigkeitsvektor
   vehicle.x += vehicle.vx * dt;
   vehicle.y += vehicle.vy * dt;
 };
