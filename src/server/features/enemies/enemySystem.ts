@@ -354,7 +354,6 @@ export const updateEnemies = (
       dt,
       input,
       tuning: archetype,
-      lowBattery: false,
       crippledBattery: false,
       offRoad: !surface.onRoad,
       boosted: now < enemy.boostedUntil

@@ -54,7 +54,6 @@ export const GAME_CONFIG = {
     throttleDrain: 1.5,
     speedDrain: 1,
     shootDrain: 1,
-    lowBatteryThreshold: 25,
     crippledThreshold: 8,
     chargeRate: 50,
     boostLaneChargeRate: 50
@@ -68,7 +67,6 @@ export const GAME_CONFIG = {
   },
   vehiclePhysics: {
     crippledBatteryFactor: 0.35,
-    lowBatteryFactor: 0.72,
     offRoadFactor: 0.7,
     brakeStrength: 8,
     minimumTurningVelocity: 2, // Mindestgeschwindigkeit zum Lenken - niedriger = auch langsamer noch lenken können

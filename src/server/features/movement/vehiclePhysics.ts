@@ -6,7 +6,6 @@ export interface VehicleStepOptions {
   dt: number;
   input: PlayerInput;
   tuning: VehicleTuning;
-  lowBattery: boolean;
   crippledBattery: boolean;
   offRoad: boolean;
   boosted: boolean;
@@ -15,13 +14,11 @@ export interface VehicleStepOptions {
 
 export const stepVehicle = (
   vehicle: VehicleState,
-  { dt, input, tuning, lowBattery, crippledBattery, offRoad, boosted, isPlayerHandbrake }: VehicleStepOptions
+  { dt, input, tuning, crippledBattery, offRoad, boosted, isPlayerHandbrake }: VehicleStepOptions
 ): void => {
   const lowBatteryFactor = crippledBattery
     ? GAME_CONFIG.vehiclePhysics.crippledBatteryFactor
-    : lowBattery
-      ? GAME_CONFIG.vehiclePhysics.lowBatteryFactor
-      : 1;
+    : 1;
   const boostFactor = boosted ? GAME_CONFIG.boost.speedMultiplier : 1;
   const roadFactor = offRoad ? GAME_CONFIG.vehiclePhysics.offRoadFactor : 1;
   const maxForward = tuning.maxForwardSpeed * boostFactor * roadFactor;
@@ -61,12 +58,14 @@ const applyAcceleration = (
     vehicle.driveVelocity += accelerationInput
         * tuning.acceleration
         * frictionFactor
-        * lowBatteryFactor
         * dt;
   }
 
   // Begrenzte auf Max-Geschwindigkeiten
-  vehicle.driveVelocity = clamp(vehicle.driveVelocity, -maxReverse, maxForward);
+  vehicle.driveVelocity = clamp(
+      vehicle.driveVelocity,
+      -maxReverse * lowBatteryFactor,
+      maxForward * lowBatteryFactor);
 };
 
 const applyDynamics = (

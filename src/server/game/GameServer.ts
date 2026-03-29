@@ -221,7 +221,6 @@ export class GameServer {
         dt,
         input,
         tuning: playerTuning,
-        lowBattery: player.battery <= GAME_CONFIG.battery.lowBatteryThreshold,
         crippledBattery: player.battery <= GAME_CONFIG.battery.crippledThreshold,
         offRoad: !surface.onRoad,
         boosted: now < player.boostedUntil,
