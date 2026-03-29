@@ -499,6 +499,7 @@ export const renderGame = (
   ctx.clearRect(0, 0, width, height);
 
   const localPlayer = snapshot.players.find((player) => player.id === localPlayerId);
+  const localPlayerVisual = localPlayerId ? visuals.players.get(localPlayerId) ?? null : null;
   const localPlayerSpeed = localPlayer ? Math.abs(Math.hypot(localPlayer.vx, localPlayer.vy)) : 0;
 
   if (audio && localPlayer) {
@@ -512,8 +513,10 @@ export const renderGame = (
 
   const visibleWorldWidth = width / currentCameraZoom;
   const visibleWorldHeight = height / currentCameraZoom;
-  const cameraX = clamp(localPlayer?.x ?? CITY_MAP.width / 2, visibleWorldWidth / 2, CITY_MAP.width - visibleWorldWidth / 2);
-  const cameraY = clamp(localPlayer?.y ?? CITY_MAP.height / 2, visibleWorldHeight / 2, CITY_MAP.height - visibleWorldHeight / 2);
+  const cameraTargetX = localPlayerVisual?.x ?? localPlayer?.x ?? CITY_MAP.width / 2;
+  const cameraTargetY = localPlayerVisual?.y ?? localPlayer?.y ?? CITY_MAP.height / 2;
+  const cameraX = clamp(cameraTargetX, visibleWorldWidth / 2, CITY_MAP.width - visibleWorldWidth / 2);
+  const cameraY = clamp(cameraTargetY, visibleWorldHeight / 2, CITY_MAP.height - visibleWorldHeight / 2);
   const viewBounds: ViewportBounds = {
     left: cameraX - visibleWorldWidth / 2,
     top: cameraY - visibleWorldHeight / 2,

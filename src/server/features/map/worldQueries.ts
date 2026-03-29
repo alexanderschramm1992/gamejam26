@@ -1,6 +1,6 @@
 import { getBuildingCollisionRect } from "../../../shared/map/buildingAssets";
-import { CITY_MAP } from "../../../shared/map/cityMap";
-import type { BoostLane, CirclePoi } from "../../../shared/model/types";
+import { CITY_MAP, TILE_SIZE } from "../../../shared/map/cityMap";
+import type { BoostLane, CirclePoi, RectZone } from "../../../shared/model/types";
 import { circleIntersectsRect, clamp, distance, pointInRect } from "../../../shared/utils/math";
 
 export interface PhysicsBody {
@@ -17,8 +17,63 @@ export interface SurfaceInfo {
   boostLane?: BoostLane;
 }
 
+const BUILDING_GRID_SIZE = TILE_SIZE;
+const BUILDING_COLLISION_RECTS = CITY_MAP.buildings.map((building) => getBuildingCollisionRect(building));
+const buildingGrid = new Map<string, RectZone[]>();
+
+const cellKey = (col: number, row: number): string => `${col},${row}`;
+
+const getCellRange = (min: number, max: number): [number, number] => {
+  const start = Math.floor(min / BUILDING_GRID_SIZE);
+  const end = Math.floor(Math.max(min, max - 1) / BUILDING_GRID_SIZE);
+  return [start, end];
+};
+
+for (const building of BUILDING_COLLISION_RECTS) {
+  const [startCol, endCol] = getCellRange(building.x, building.x + building.width);
+  const [startRow, endRow] = getCellRange(building.y, building.y + building.height);
+
+  for (let col = startCol; col <= endCol; col += 1) {
+    for (let row = startRow; row <= endRow; row += 1) {
+      const key = cellKey(col, row);
+      const list = buildingGrid.get(key);
+      if (list) {
+        list.push(building);
+      } else {
+        buildingGrid.set(key, [building]);
+      }
+    }
+  }
+}
+
 const isOnBridge = (body: Pick<PhysicsBody, "x" | "y" | "radius">): boolean =>
   CITY_MAP.bridges.some((bridge) => circleIntersectsRect(body, body.radius, bridge));
+
+export const getNearbyBuildingCollisionRects = (x: number, y: number, radius = 0): RectZone[] => {
+  const [startCol, endCol] = getCellRange(x - radius, x + radius);
+  const [startRow, endRow] = getCellRange(y - radius, y + radius);
+  const seen = new Set<string>();
+  const nearby: RectZone[] = [];
+
+  for (let col = startCol; col <= endCol; col += 1) {
+    for (let row = startRow; row <= endRow; row += 1) {
+      const cellBuildings = buildingGrid.get(cellKey(col, row));
+      if (!cellBuildings) {
+        continue;
+      }
+
+      for (const building of cellBuildings) {
+        if (seen.has(building.id)) {
+          continue;
+        }
+        seen.add(building.id);
+        nearby.push(building);
+      }
+    }
+  }
+
+  return nearby;
+};
 
 export const getSurfaceInfo = (body: Pick<PhysicsBody, "x" | "y" | "radius">): SurfaceInfo => {
   const onRoad = CITY_MAP.roads.some((road) => circleIntersectsRect(body, body.radius, road));
@@ -50,8 +105,7 @@ export const resolveWorldCollision = (body: PhysicsBody): boolean => {
     collided = true;
   }
 
-  for (const buildingZone of CITY_MAP.buildings) {
-    const building = getBuildingCollisionRect(buildingZone);
+  for (const building of getNearbyBuildingCollisionRects(body.x, body.y, body.radius)) {
     if (!circleIntersectsRect(body, body.radius, building)) {
       continue;
     }
