@@ -101,7 +101,19 @@ const sampleRayClearance = (origin: Vec2, angle: number, maxDistance: number, pa
 };
 
 const chooseNavigationTarget = (enemy: EnemyState, target: PlayerState, brain: EnemyBrain): Vec2 => {
-  if (hasDirectSightLine(enemy, target, enemy.radius)) {
+  const protectionRadius = GAME_CONFIG.enemies.playerSpawnProtectionRadius;
+  
+  // Wenn Ziel in Schutzzone ist, ziehe einen ausweichenden Punkt vor
+  let targetPos = { x: target.x, y: target.y };
+  let targetInProtection = false;
+  for (const spawn of CITY_MAP.playerSpawns) {
+    if (distance(targetPos, spawn) < protectionRadius) {
+      targetInProtection = true;
+      break;
+    }
+  }
+  
+  if (hasDirectSightLine(enemy, target, enemy.radius) && !targetInProtection) {
     return { x: target.x, y: target.y };
   }
 
@@ -232,6 +244,16 @@ const updateStuckState = (
   brain.waypoints = [];
 };
 
+const isInSpawnProtectionZone = (position: Vec2): boolean => {
+  const protectionRadius = GAME_CONFIG.enemies.playerSpawnProtectionRadius;
+  for (const spawn of CITY_MAP.playerSpawns) {
+    if (distance(position, spawn) < protectionRadius) {
+      return true;
+    }
+  }
+  return false;
+};
+
 export const spawnEnemy = (
   id: string,
   stage: number,
@@ -243,16 +265,29 @@ export const spawnEnemy = (
   const archetype = ENEMY_ARCHETYPES[kind];
   const fallbackTarget = players.find((player) => !player.destroyed && player.ghostTimer <= 0)
     ?? players.find((player) => !player.destroyed);
-  const spawnAngle = randomBetween(0, Math.PI * 2);
-  const spawnDistance = randomBetween(20, hotspot.radius - 10);
   const maxHealth = archetype.maxHealth * healthMultiplier;
+  
+  // Versuche mehrmals einen gültigen Spawn-Punkt zu finden, der nicht in der Schutzzone liegt
+  let position: Vec2;
+  let attempts = 0;
+  const maxAttempts = 10;
+  
+  do {
+    const spawnAngle = randomBetween(0, Math.PI * 2);
+    const spawnDistance = randomBetween(20, hotspot.radius - 10);
+    position = {
+      x: hotspot.x + Math.cos(spawnAngle) * spawnDistance,
+      y: hotspot.y + Math.sin(spawnAngle) * spawnDistance
+    };
+    attempts++;
+  } while (isInSpawnProtectionZone(position) && attempts < maxAttempts);
 
   return {
     id,
     type: "enemy",
     kind,
-    x: hotspot.x + Math.cos(spawnAngle) * spawnDistance,
-    y: hotspot.y + Math.sin(spawnAngle) * spawnDistance,
+    x: position.x,
+    y: position.y,
     rotation: randomBetween(-Math.PI, Math.PI),
     vx: 0,
     vy: 0,
@@ -284,6 +319,27 @@ const findClosestPlayer = (enemy: EnemyState, players: PlayerState[]): PlayerSta
   }
 
   return closestPlayer;
+};
+
+// Berechnet einen Fluchtpunkt für Gegner, die zu nah an der Spawn-Schutzzone sind
+const getSpawnProtectionEscapeTarget = (enemy: EnemyState): Vec2 | null => {
+  const protectionRadius = GAME_CONFIG.enemies.playerSpawnProtectionRadius;
+  
+  // Prüfe ob Gegner zu nah an einer Schutzzone ist
+  for (const spawn of CITY_MAP.playerSpawns) {
+    const distToSpawn = distance(enemy, spawn);
+    if (distToSpawn < protectionRadius + 150) { // 150er Puffer für frühes Ausweichen
+      // Berechne Fluchtrichtung: Weg vom Spawn-Punkt
+      const escapeAngle = Math.atan2(enemy.y - spawn.y, enemy.x - spawn.x);
+      const escapeDistance = protectionRadius + 250;
+      return {
+        x: spawn.x + Math.cos(escapeAngle) * escapeDistance,
+        y: spawn.y + Math.sin(escapeAngle) * escapeDistance
+      };
+    }
+  }
+  
+  return null;
 };
 
 export const updateEnemies = (
@@ -332,7 +388,12 @@ export const updateEnemies = (
     }
 
     const navigationTarget = chooseNavigationTarget(enemy, target, brain);
-    const avoidance = applyObstacleAvoidance(enemy, navigationTarget, brain.reverseSteer);
+    
+    // Prüfe auf Spawn-Schutzzone und berechne ggf. Fluchtweg
+    const escapeTarget = getSpawnProtectionEscapeTarget(enemy);
+    const finalNavigationTarget = escapeTarget ?? navigationTarget;
+    
+    const avoidance = applyObstacleAvoidance(enemy, finalNavigationTarget, brain.reverseSteer);
     const leadTime = enemy.kind === "gunner" ? Math.min(0.45, distance(enemy, target) / ENEMY_PROJECTILE_SPEED) : 0;
     const aimTarget = {
       x: target.x + target.vx * leadTime,
@@ -340,6 +401,14 @@ export const updateEnemies = (
     };
 
     const input = makeInput(enemy, target, avoidance.steeringTarget, aimTarget);
+    
+    // Wenn Gegner flieht, schießt er nicht und navigiert aggressiv weg
+    if (escapeTarget) {
+      input.shoot = false;
+      input.throttle = 1;
+      brain.repathTimer = Math.min(brain.repathTimer, FORCED_REPATH_TIME);
+    }
+    
     if (brain.reverseTimer > 0) {
       input.throttle = -0.72;
       input.shoot = false;

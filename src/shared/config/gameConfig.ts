@@ -103,7 +103,8 @@ export const GAME_CONFIG = {
     minSpawnInterval: 1,      // Minimales Spawn-Intervall (hardlimit)
     maxBaseCount: 3,          // Basis-Gegneranzahl (wird mit Spieleranzahl + Danger multipliziert)
     maxActiveCount: 8,        // Maximale gleichzeitig aktive Gegner
-    missionPressure: 1        // Zusätzliche Gegner wenn Mission aktiv
+    missionPressure: 1,       // Zusätzliche Gegner wenn Mission aktiv
+    playerSpawnProtectionRadius: 400  // Radius um Spieler-Spawn-Punkte, in dem Gegner nicht spawnen dürfen
   },
   ui: {
     feedEventCount: 6
