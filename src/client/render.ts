@@ -994,4 +994,69 @@ export const renderGame = (
   ctx.fillStyle = "#9bb3c5";
   ctx.fillText(`FPS: ${fps.toFixed(1)}`, width - 202, 62);
   ctx.fillText(`Server TPS: ${serverTickRate.toFixed(1)}`, width - 202, 78);
+
+  // Render victory modal if there's a winner
+  if (snapshot.team.winnerPlayerId && snapshot.team.winnerName) {
+    renderVictoryModal(ctx, width, height, snapshot);
+  }
+};
+
+export const renderVictoryModal = (
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  snapshot: GameSnapshot
+): void => {
+  if (!snapshot.team.winnerName) {
+    return;
+  }
+
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const modalWidth = 500;
+  const modalHeight = 320;
+  const modalLeft = centerX - modalWidth / 2;
+  const modalTop = centerY - modalHeight / 2;
+
+  // Semi-transparent backdrop
+  ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+  ctx.fillRect(0, 0, width, height);
+
+  // Modal background with border
+  ctx.fillStyle = "#1a2332";
+  ctx.fillRect(modalLeft, modalTop, modalWidth, modalHeight);
+
+  ctx.strokeStyle = "#ffcf69";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(modalLeft, modalTop, modalWidth, modalHeight);
+
+  // Title
+  ctx.fillStyle = "#ffcf69";
+  ctx.font = "700 48px Trebuchet MS";
+  ctx.textAlign = "center";
+  ctx.fillText("🏆 WINNER! 🏆", centerX, modalTop + 70);
+
+  // Winner name
+  ctx.fillStyle = "#58f0ff";
+  ctx.font = "700 36px Trebuchet MS";
+  ctx.fillText(snapshot.team.winnerName, centerX, modalTop + 130);
+
+  // Winner score
+  ctx.fillStyle = "#c1ff72";
+  ctx.font = "700 28px Trebuchet MS";
+  ctx.fillText(`${snapshot.team.winnerScore ?? 0} Points`, centerX, modalTop + 175);
+
+  // Restart countdown
+  ctx.fillStyle = "#f4f8ff";
+  ctx.font = "700 22px Trebuchet MS";
+  const countdownText = `Restarting in ${Math.max(0, snapshot.team.restartCountdownRemaining).toFixed(1)}s`;
+  ctx.fillText(countdownText, centerX, modalTop + 230);
+
+  // Decorative line
+  ctx.strokeStyle = "#58f0ff";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(modalLeft + 30, modalTop + 245);
+  ctx.lineTo(modalLeft + modalWidth - 30, modalTop + 245);
+  ctx.stroke();
 };

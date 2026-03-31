@@ -117,6 +117,8 @@ export interface TeamState {
   deliveriesToWin: number;
   winnerPlayerId: string | null;
   winnerName: string | null;
+  winnerScore: number | null;
+  restartCountdownRemaining: number;
 }
 
 export interface AdminSettings {

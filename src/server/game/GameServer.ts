@@ -62,7 +62,9 @@ export class GameServer {
     danger: 0,
     deliveriesToWin: DEFAULT_ADMIN_SETTINGS.deliveriesToWin,
     winnerPlayerId: null,
-    winnerName: null
+    winnerName: null,
+    winnerScore: null,
+    restartCountdownRemaining: 0
   };
   private readonly recentEvents: WorldEvent[] = [];
   private readonly collisionEventTimestamps = new Map<string, number>();
@@ -204,8 +206,66 @@ export class GameServer {
     this.cleanupDestroyedEntities();
     this.updateMission(dt);
     this.updateEnemySpawning(dt);
+    this.updateVictoryCountdown(dt);
     if (this.shouldBroadcastSnapshot()) {
       this.broadcastSnapshot(now);
+    }
+  }
+
+  private updateVictoryCountdown(dt: number): void {
+    if (this.team.restartCountdownRemaining <= 0) {
+      return;
+    }
+
+    this.team.restartCountdownRemaining -= dt;
+    if (this.team.restartCountdownRemaining <= 0) {
+      this.restartGame();
+    }
+  }
+
+  private restartGame(): void {
+    // Reset mission
+    this.mission = createMission(0);
+    
+    // Reset victory state
+    this.team.winnerPlayerId = null;
+    this.team.winnerName = null;
+    this.team.winnerScore = null;
+    this.team.restartCountdownRemaining = 0;
+    
+    // Reset team scores
+    this.team.deliveries = 0;
+    this.team.score = 0;
+    this.team.danger = 0;
+    
+    // Clear enemies and projectiles
+    this.enemies = [];
+    this.projectiles = [];
+    this.enemyBrains.clear();
+    this.spawnTimer = 0;
+    this.enemySpawnCounter = 0;
+    this.recentEvents.length = 0;
+
+    // Reset all players
+    for (const player of this.players.values()) {
+      player.deliveriesCompleted = 0;
+      player.score = 0;
+      player.health = player.maxHealth;
+      player.battery = player.maxBattery;
+      player.destroyed = false;
+      player.respawnTimer = 0;
+      player.ghostTimer = 0;
+      player.weaponCooldown = 0;
+      player.vx = 0;
+      player.vy = 0;
+      player.driveVelocity = 0;
+      
+      // Respawn at spawn point
+      const index = Array.from(this.players.keys()).indexOf(player.id) % CITY_MAP.playerSpawns.length;
+      const spawn = CITY_MAP.playerSpawns[index];
+      player.x = spawn.x;
+      player.y = spawn.y;
+      player.rotation = 0;
     }
   }
 
@@ -213,7 +273,9 @@ export class GameServer {
     const playerTuning = this.getPlayerTuning();
 
     for (const player of this.players.values()) {
-      const input = this.inputs.get(player.id) ?? neutralInput;
+      // Ignore player input during victory countdown
+      const shouldIgnoreInput = this.team.winnerPlayerId !== null;
+      const input = shouldIgnoreInput ? neutralInput : (this.inputs.get(player.id) ?? neutralInput);
       player.lastProcessedInput = input.seq;
       player.weaponCooldown = Math.max(0, player.weaponCooldown - dt);
       player.ghostTimer = Math.max(0, player.ghostTimer - dt);
@@ -734,6 +796,8 @@ export class GameServer {
   private declareWinner(player: PlayerState): void {
     this.team.winnerPlayerId = player.id;
     this.team.winnerName = player.name;
+    this.team.winnerScore = player.score;
+    this.team.restartCountdownRemaining = 10;
     this.pushEvent(
       "mission-completed",
       `${player.name} wins with ${player.deliveriesCompleted} deliveries`,
