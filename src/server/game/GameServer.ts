@@ -311,6 +311,7 @@ export class GameServer {
           if (this.tickCounter - lastCollisionTick >= collisionCooldownTicks) {
             this.collisionEventTimestamps.set(player.id, this.tickCounter);
             this.pushEvent("hit", `${player.name} hit the wall`, player.x, player.y, player.id);
+            this.pushEvent("collision-scrape", "", player.x, player.y, player.id);
           }
         }
       }
@@ -395,6 +396,7 @@ export class GameServer {
           const impactY = (a.y + b.y) / 2;
           if (impactDamage > 4) {
             this.pushEvent("hit", `${a.name} collided with ${b.name}`, impactX, impactY, a.id);
+            this.pushEvent("collision-scrape", "", impactX, impactY, a.id);
           }
         }
       }
@@ -416,10 +418,12 @@ export class GameServer {
       player.health -= archetype.contactDamage * 0.45 * damageMultiplier;
       enemy.health -= impactDamage * 0.1;
       this.pushEvent("hit", `${enemy.kind} slammed ${player.name}`, player.x, player.y, player.id);
+      this.pushEvent("collision-scrape", "", player.x, player.y, player.id);
       return;
     }
 
     this.pushEvent("hit", `${enemy.kind} clipped ${player.name}`, player.x, player.y, player.id);
+    this.pushEvent("collision-scrape", "", player.x, player.y, player.id);
   }
 
   private handleEnemyDrains(): void {

@@ -153,6 +153,7 @@ export interface AdminState {
 export type WorldEventType =
   | "shot"
   | "hit"
+  | "collision-scrape"
   | "enemy-destroyed"
   | "player-destroyed"
   | "mission-accepted"

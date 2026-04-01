@@ -37,6 +37,12 @@ export class AudioMixer {
   public static readonly ENGINE_RAMP_SMOOTHNESS = 0.12;
   public static readonly ENGINE_VOLUME_SMOOTHNESS = 0.1;
 
+  // Scraping metal collision sound config
+  public static readonly SCRAPE_DURATION = 0.15;
+  public static readonly SCRAPE_BASE_FREQ = 180;
+  public static readonly SCRAPE_PITCH_VARIATION = 140;
+  public static readonly SCRAPE_GAIN = 0.25;
+
   constructor() {
     const enable = () => {
       this.enable();
@@ -211,6 +217,9 @@ export class AudioMixer {
         case "hit":
           this.playTone(160, 0.08, "sawtooth", 0.04);
           break;
+        case "collision-scrape":
+          this.playScrapeSound();
+          break;
         case "enemy-destroyed":
           this.playTone(90, 0.18, "sawtooth", 0.05);
           break;
@@ -248,6 +257,48 @@ export class AudioMixer {
 
   public playMgShot(): void {
     this.playAudioSample(this.mgShotSound);
+  }
+
+  public playScrapeSound(): void {
+    if (!this.context || !this.enabled) {
+      return;
+    }
+
+    const now = this.context.currentTime;
+    const duration = AudioMixer.SCRAPE_DURATION;
+
+    // Create main scraping oscillator with sawtooth wave for harsh metallic sound
+    const osc1 = this.context.createOscillator();
+    const gain1 = this.context.createGain();
+    osc1.type = "sawtooth";
+    osc1.frequency.setValueAtTime(AudioMixer.SCRAPE_BASE_FREQ, now);
+    // Pitch sweep down for scraping effect
+    osc1.frequency.linearRampToValueAtTime(AudioMixer.SCRAPE_BASE_FREQ - AudioMixer.SCRAPE_PITCH_VARIATION, now + duration);
+    
+    gain1.gain.setValueAtTime(AudioMixer.SCRAPE_GAIN, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+    // Create secondary oscillator with slight phase for richness
+    const osc2 = this.context.createOscillator();
+    const gain2 = this.context.createGain();
+    osc2.type = "sawtooth";
+    osc2.frequency.setValueAtTime(AudioMixer.SCRAPE_BASE_FREQ + 45, now);
+    osc2.frequency.linearRampToValueAtTime(AudioMixer.SCRAPE_BASE_FREQ - AudioMixer.SCRAPE_PITCH_VARIATION + 45, now + duration);
+    
+    gain2.gain.setValueAtTime(AudioMixer.SCRAPE_GAIN * 0.6, now);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+    // Connect oscillators through gains to destination
+    osc1.connect(gain1);
+    gain1.connect(this.context.destination);
+    osc2.connect(gain2);
+    gain2.connect(this.context.destination);
+
+    // Start and stop sounds
+    osc1.start(now);
+    osc1.stop(now + duration);
+    osc2.start(now);
+    osc2.stop(now + duration);
   }
 
   private playAudioSample(audio: HTMLAudioElement): void {
