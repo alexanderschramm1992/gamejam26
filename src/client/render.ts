@@ -952,7 +952,7 @@ export const renderGame = (
       ctx.fillText(`Ghost mode ${localPlayer.ghostTimer.toFixed(1)}s`, 42, height - 20);
     } else if (localPlayer.charging) {
       ctx.fillStyle = "#ffcf69";
-      ctx.fillText("Charging on station", 42, height - 20);
+      ctx.fillText("Repairing on station", 42, height - 20);
     }
   }
 

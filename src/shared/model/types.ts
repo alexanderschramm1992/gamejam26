@@ -55,7 +55,7 @@ export interface VehicleState {
   radius: number; // Kollisionsradius für physikalische Berechnungen
   weaponCooldown: number; // Verbleibende Zeit (ms) bis die nächste Waffe abgefeuert werden kann
   boostedUntil: number; // Zeitstempel bis zu dem Fahrzeug-Boost aktiv ist
-  charging: boolean; // Ob das Fahrzeug gerade an einer Ladestation lädt
+  charging: boolean; // Ob das Fahrzeug gerade den Stationseffekt (Reparatur) erhaelt
   destroyed: boolean; // Flag ob das Fahrzeug zerstört/vernichtet ist
 }
 

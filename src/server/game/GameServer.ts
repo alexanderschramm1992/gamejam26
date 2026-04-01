@@ -324,7 +324,7 @@ export class GameServer {
       }
 
       if (resourceResult.chargedThisFrame && this.tickCounter % 20 === 0) {
-        this.pushEvent("charge", `${player.name} is charging`, player.x, player.y, player.id);
+        this.pushEvent("charge", `${player.name} is repairing`, player.x, player.y, player.id);
       }
       if (resourceResult.boostedThisFrame && this.tickCounter % 18 === 0) {
         this.pushEvent("boost", `${player.name} hit a boost lane`, player.x, player.y, player.id);

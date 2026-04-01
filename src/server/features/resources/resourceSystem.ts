@@ -40,13 +40,13 @@ export const updateVehicleResources = (
     vehicle.battery = vehicle.maxBattery;
   }
 
-  if (surface.chargeStation && consumesBattery && Math.hypot(vehicle.vx, vehicle.vy) < 40) {
+  if (surface.chargeStation && Math.hypot(vehicle.vx, vehicle.vy) < 40) {
     vehicle.charging = true;
     chargedThisFrame = true;
-    vehicle.battery = clamp(
-      vehicle.battery + GAME_CONFIG.battery.chargeRate * chargeMultiplier * dt,
+    vehicle.health = clamp(
+      vehicle.health + GAME_CONFIG.battery.chargeRate * chargeMultiplier * dt,
       0,
-      vehicle.maxBattery
+      vehicle.maxHealth
     );
   }
 
