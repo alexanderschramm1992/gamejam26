@@ -28,7 +28,6 @@ export const PLAYER_COLORS = ["#58f0ff", "#ffa84d", "#c1ff72", "#ff7ad1"];
 export const GAME_CONFIG = {
   tickRate: 60,
   snapshotRate: 30,
-  arenaPadding: 80,
   player: {
     acceleration: 500,
     reverseAcceleration: 170,
@@ -62,27 +61,20 @@ export const GAME_CONFIG = {
     speedMultiplier: 1.18,
     duration: 1.2
   },
-  physics: {
-    turnSpeedScaling: 0.5, // Wendekreis-Faktor: je höher, desto mehr beeinflusst Geschwindigkeit den Wendekreis
-  },
   vehiclePhysics: {
     crippledBatteryFactor: 0.35,
     offRoadFactor: 0.7,
-    brakeStrength: 8,
-    minimumTurningVelocity: 2, // Mindestgeschwindigkeit zum Lenken - niedriger = auch langsamer noch lenken können
     // Drift-Dämpfung für realistische Fahrtdynamik (0-1)
     // Steuert wie schnell die Fahrtrichtung (vx/vy) dem Lenkwinkel folgt:
     // - Höher (z.B. 0.3-0.5): Fahrzeug folgt dem Lenkwinkel direkt und präzise (arcade-like, hochgradig steuerbar)
     // - Mittler (z.B. 0.15-0.25): Balanciertes Verhalten mit natürlichem Drift in Kurven
     // - Niedriger (z.B. 0.05-0.12): Fahrzeug rutscht stark, verzögert Lenkreaktion (simulativ, schwerer zu fahren)
     driftDamping: 0.15,
-    handbrakeDriftDamping: 0.04, // Drift-Dämpfung mit aktivierter Handbremse - höher = weniger Drift
-    angularVelocityMax: 4.0 // Max Rotationsgeschwindigkeit pro Sekunde - höher = schnellere Drehbewegungen
+    handbrakeDriftDamping: 0.04 // Drift-Dämpfung mit aktivierter Handbremse - höher = weniger Drift
   },
   combat: {
     projectileRadius: 5,
-    projectileLife: 1.05,
-    impactImpulse: 120
+    projectileLife: 1.05
   },
   tireSlip: {
     thresholdDegrees: 10, // Winkel-Schwellenwert ab dem Reifenspuren sichtbar sind
