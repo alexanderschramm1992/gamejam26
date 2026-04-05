@@ -1,4 +1,4 @@
-import { VEHICLE_OPTIONS, type VehicleOption } from "./catalog";
+import { VEHICLE_OPTIONS, type VehicleOption } from "../../shared/config/gameConfig";
 import { VehicleSelectionController } from "./VehicleSelectionController";
 
 interface VehicleCardElements {

@@ -7,6 +7,7 @@ export interface ServerHello {
 export interface ClientEvents {
   input: (input: PlayerInput) => void;
   setPlayerName: (name: string) => void;
+  setPlayerVehicle: (vehicleId: string) => void;
   adminUpdateSettings: (patch: AdminSettingsPatch) => void;
 }
 

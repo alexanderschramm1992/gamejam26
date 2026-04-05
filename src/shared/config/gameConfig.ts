@@ -23,6 +23,84 @@ export interface EnemyArchetype extends VehicleTuning {
   batteryDrain: number;
 }
 
+export interface VehicleSelectionStats {
+  speed: number;
+  battery: number;
+  hull: number;
+}
+
+export interface VehicleOption {
+  id: string;
+  name: string;
+  assetPath: string;
+  accent: string;
+  descriptions: string;
+  stats: VehicleSelectionStats;
+}
+
+export interface VehicleSelectionModifiers {
+  speed: number;
+  battery: number;
+  hull: number;
+}
+
+export const DEFAULT_VEHICLE_SELECTION_MODIFIERS: VehicleSelectionModifiers = {
+  speed: 1,
+  battery: 1,
+  hull: 1
+};
+
+export const toVehicleSelectionModifiers = (
+  stats: VehicleSelectionStats
+): VehicleSelectionModifiers => ({
+  speed: stats.speed / 100,
+  battery: stats.battery / 100,
+  hull: stats.hull / 100
+});
+
+export const VEHICLE_OPTIONS: VehicleOption[] = [
+  {
+    id: "car-blue",
+    name: "Azure",
+    assetPath: "/assets/cars/CarBlue.png",
+    accent: "#58f0ff",
+    descriptions: "Ein ausgewogener Allrounder.",
+    stats: { speed: 100, battery: 100, hull: 100 }
+  },
+  {
+    id: "car-green",
+    name: "Verge",
+    assetPath: "/assets/cars/CarGreen.png",
+    accent: "#9ef07f",
+    descriptions: "Der Wagen setzt auf Top Speed zu Lasten von Batterie und Stabilitaet.",
+    stats: { speed: 120, battery: 90, hull: 90 }
+  },
+  {
+    id: "car-orange",
+    name: "Ember",
+    assetPath: "/assets/cars/CarOrange.png",
+    accent: "#ffb347",
+    descriptions: "Gebaut fuer hohe Batterielaufzeit zu Lasten von Hoechstgeschwindigkeit und Stabilitaet.",
+    stats: { speed: 90, battery: 120, hull: 90 }
+  },
+  {
+    id: "car-purple",
+    name: "Pulse",
+    assetPath: "/assets/cars/CarPurple.png",
+    accent: "#d38cff",
+    descriptions: "Ein schweres stabiles Chassis, zu Lasten der Hoechstgeschwindigkeit und Batterie Groesse.",
+    stats: { speed: 90, battery: 90, hull: 120 }
+  },
+  {
+    id: "car-yellow",
+    name: "Solar",
+    assetPath: "/assets/cars/CarYellow.png",
+    accent: "#ffe36a",
+    descriptions: "Du willst einen Speedrun Rekord aufstellen, das ist dein Wagen!",
+    stats: { speed: 110, battery: 110, hull: 80 }
+  }
+];
+
 export const PLAYER_COLORS = ["#58f0ff", "#ffa84d", "#c1ff72", "#ff7ad1"];
 
 export const GAME_CONFIG = {

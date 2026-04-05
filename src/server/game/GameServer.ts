@@ -1,6 +1,15 @@
 import type { Server as SocketServer, Socket } from "socket.io";
 import { DEFAULT_ADMIN_SETTINGS, clampAdminSetting } from "../../shared/config/adminSettings";
-import { ENEMY_ARCHETYPES, GAME_CONFIG, PLAYER_COLORS, type VehicleTuning } from "../../shared/config/gameConfig";
+import {
+  DEFAULT_VEHICLE_SELECTION_MODIFIERS,
+  ENEMY_ARCHETYPES,
+  GAME_CONFIG,
+  PLAYER_COLORS,
+  VEHICLE_OPTIONS,
+  toVehicleSelectionModifiers,
+  type VehicleSelectionModifiers,
+  type VehicleTuning
+} from "../../shared/config/gameConfig";
 import { CITY_MAP } from "../../shared/map/cityMap";
 import type {
   AdminSettings,
@@ -47,11 +56,15 @@ const neutralInput: PlayerInput = {
 
 const DRAIN_BEAM_RANGE_MULTIPLIER = 3.6;
 const DEATH_SCORE_PENALTY = 500;
+const VEHICLE_MODIFIERS_BY_ID = new Map<string, VehicleSelectionModifiers>(
+  VEHICLE_OPTIONS.map((option) => [option.id, toVehicleSelectionModifiers(option.stats)])
+);
 
 export class GameServer {
   private readonly io: SocketServer;
   private readonly players = new Map<string, PlayerState>();
   private readonly inputs = new Map<string, PlayerInput>();
+  private readonly playerVehicleModifiers = new Map<string, VehicleSelectionModifiers>();
   private readonly enemyBrains = new Map<string, EnemyBrain>();
   private enemies: EnemyState[] = [];
   private projectiles: ProjectileState[] = [];
@@ -112,6 +125,9 @@ export class GameServer {
     socket.on("setPlayerName", (name: string) => {
       player.name = this.sanitizePlayerName(name, player.name);
     });
+    socket.on("setPlayerVehicle", (vehicleId: string) => {
+      this.applyPlayerVehicleSelection(player, vehicleId);
+    });
     socket.on("adminUpdateSettings", (patch: AdminSettingsPatch) => {
       if (player.id !== this.adminPlayerId) {
         return;
@@ -121,6 +137,7 @@ export class GameServer {
     socket.on("disconnect", () => {
       this.players.delete(player.id);
       this.inputs.delete(player.id);
+      this.playerVehicleModifiers.delete(player.id);
 
       if (this.adminPlayerId === player.id) {
         this.assignNextAdmin();
@@ -137,6 +154,8 @@ export class GameServer {
     const spawn = CITY_MAP.playerSpawns[index];
     const name = `Driver ${this.players.size + 1}`;
 
+    const vehicleModifiers = this.getPlayerVehicleModifiers(id);
+
     return {
       id,
       type: "player",
@@ -148,10 +167,10 @@ export class GameServer {
       vx: 0,
       vy: 0,
       driveVelocity: 0,
-      health: GAME_CONFIG.player.maxHealth,
-      maxHealth: GAME_CONFIG.player.maxHealth,
-      battery: this.adminSettings.playerMaxBattery,
-      maxBattery: this.adminSettings.playerMaxBattery,
+      health: GAME_CONFIG.player.maxHealth * vehicleModifiers.hull,
+      maxHealth: GAME_CONFIG.player.maxHealth * vehicleModifiers.hull,
+      battery: this.adminSettings.playerMaxBattery * vehicleModifiers.battery,
+      maxBattery: this.adminSettings.playerMaxBattery * vehicleModifiers.battery,
       radius: GAME_CONFIG.player.radius,
       weaponCooldown: 0,
       boostedUntil: 0,
@@ -270,9 +289,8 @@ export class GameServer {
   }
 
   private updatePlayers(dt: number, now: number): void {
-    const playerTuning = this.getPlayerTuning();
-
     for (const player of this.players.values()) {
+      const playerTuning = this.getPlayerTuning(player.id);
       // Ignore player input during victory countdown
       const shouldIgnoreInput = this.team.winnerPlayerId !== null;
       const input = shouldIgnoreInput ? neutralInput : (this.inputs.get(player.id) ?? neutralInput);
@@ -613,7 +631,8 @@ export class GameServer {
     player.vy = 0;
     player.driveVelocity = 0;
     player.health = player.maxHealth;
-    player.maxBattery = this.adminSettings.playerMaxBattery;
+    const vehicleModifiers = this.getPlayerVehicleModifiers(player.id);
+    player.maxBattery = this.adminSettings.playerMaxBattery * vehicleModifiers.battery;
     player.battery = player.maxBattery;
     player.weaponCooldown = 0;
     player.ghostTimer = GAME_CONFIG.player.respawnGhostDuration;
@@ -710,7 +729,8 @@ export class GameServer {
   private syncPlayerBatteryCapacity(): void {
     for (const player of this.players.values()) {
       const fillRatio = player.maxBattery > 0 ? player.battery / player.maxBattery : 1;
-      player.maxBattery = this.adminSettings.playerMaxBattery;
+      const vehicleModifiers = this.getPlayerVehicleModifiers(player.id);
+      player.maxBattery = this.adminSettings.playerMaxBattery * vehicleModifiers.battery;
       player.battery = Math.min(player.maxBattery, Math.max(0, fillRatio) * player.maxBattery);
     }
   }
@@ -741,25 +761,48 @@ export class GameServer {
     return Math.min(GAME_CONFIG.enemies.maxActiveCount, Math.max(1, Math.ceil(scaledCount)));
   }
 
-  private getPlayerTuning(): VehicleTuning {
+  private getPlayerTuning(playerId: string): VehicleTuning {
     const base = GAME_CONFIG.player;
     const accelerationMultiplier = this.adminSettings.playerAccelerationMultiplier;
     const speedMultiplier = this.adminSettings.playerSpeedMultiplier;
     const steeringMultiplier = this.adminSettings.playerSteeringMultiplier;
     const brakeMultiplier = this.adminSettings.playerBrakeMultiplier;
     const frictionMultiplier = this.adminSettings.playerFrictionMultiplier;
+    const vehicleModifiers = this.getPlayerVehicleModifiers(playerId);
+    const totalSpeedMultiplier = speedMultiplier * vehicleModifiers.speed;
 
     return {
       acceleration: base.acceleration * accelerationMultiplier,
       reverseAcceleration: base.reverseAcceleration * (0.8 + accelerationMultiplier * 0.2),
       brakeStrength: base.brakeStrength * brakeMultiplier,
       turnSpeed: base.turnSpeed * steeringMultiplier,
-      maxForwardSpeed: base.maxForwardSpeed * speedMultiplier,
-      maxReverseSpeed: base.maxReverseSpeed * (0.72 + speedMultiplier * 0.28),
+      maxForwardSpeed: base.maxForwardSpeed * totalSpeedMultiplier,
+      maxReverseSpeed: base.maxReverseSpeed * (0.72 + totalSpeedMultiplier * 0.28),
       friction: clamp(base.friction - (frictionMultiplier - 1) * 0.035, 0.82, 0.985),
       radius: base.radius,
       collisionDamage: base.collisionDamage
     };
+  }
+
+  private getPlayerVehicleModifiers(playerId: string): VehicleSelectionModifiers {
+    return this.playerVehicleModifiers.get(playerId) ?? DEFAULT_VEHICLE_SELECTION_MODIFIERS;
+  }
+
+  private applyPlayerVehicleSelection(player: PlayerState, vehicleId: string): void {
+    const vehicleModifiers = VEHICLE_MODIFIERS_BY_ID.get(vehicleId);
+    if (!vehicleModifiers) {
+      return;
+    }
+
+    this.playerVehicleModifiers.set(player.id, vehicleModifiers);
+
+    const healthFillRatio = player.maxHealth > 0 ? player.health / player.maxHealth : 1;
+    player.maxHealth = GAME_CONFIG.player.maxHealth * vehicleModifiers.hull;
+    player.health = Math.min(player.maxHealth, Math.max(0, healthFillRatio) * player.maxHealth);
+
+    const batteryFillRatio = player.maxBattery > 0 ? player.battery / player.maxBattery : 1;
+    player.maxBattery = this.adminSettings.playerMaxBattery * vehicleModifiers.battery;
+    player.battery = Math.min(player.maxBattery, Math.max(0, batteryFillRatio) * player.maxBattery);
   }
 
   private beginMissionUnloading(player: PlayerState): void {

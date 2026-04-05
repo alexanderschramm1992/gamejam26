@@ -377,6 +377,7 @@ vehicleMenu.onConfirm(({ vehicle, playerName }: VehicleSelectionConfirmation) =>
   audio.startGameMusic();
   updateInputEnabled();
   socket.emit("setPlayerName", playerName);
+  socket.emit("setPlayerVehicle", vehicle.id);
   void setLocalPlayerCarAsset(vehicle.assetPath);
 });
 
