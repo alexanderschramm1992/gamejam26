@@ -149,6 +149,36 @@ body {
   line-height: 1.6;
 }
 
+.audio-card {
+  display: grid;
+  gap: 10px;
+}
+
+.audio-toggle {
+  border: 1px solid rgba(88, 240, 255, 0.3);
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: rgba(88, 240, 255, 0.12);
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.14s ease, background 0.14s ease, transform 0.14s ease;
+}
+
+.audio-toggle:hover,
+.audio-toggle:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(88, 240, 255, 0.5);
+}
+
+.audio-toggle.is-off {
+  border-color: rgba(255, 103, 103, 0.42);
+  background: rgba(255, 103, 103, 0.12);
+}
+
 #feed {
   margin: 0;
   padding-left: 18px;

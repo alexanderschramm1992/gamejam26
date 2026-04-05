@@ -3,6 +3,7 @@ import type { WorldEvent } from "../shared/model/types";
 export class AudioMixer {
   private context: AudioContext | null = null;
   private enabled = false;
+  private effectsEnabled = true;
   private engineOscillator: OscillatorNode | null = null;
   private engineGain: GainNode | null = null;
   private engineWhine: OscillatorNode | null = null;
@@ -22,6 +23,7 @@ export class AudioMixer {
   private shuffledGameMusic: string[] = [];
   private currentGameMusic: HTMLAudioElement | null = null;
   private currentGameMusicIndex = 0;
+  private gameMusicRequested = false;
   private readonly gameMusicVolume = 0.24;
 
   private readonly honkSound = new Audio("/sfx/honk.wav");
@@ -43,7 +45,9 @@ export class AudioMixer {
   public static readonly SCRAPE_PITCH_VARIATION = 140;
   public static readonly SCRAPE_GAIN = 0.25;
 
-  constructor() {
+  constructor(initialEffectsEnabled = true) {
+    this.effectsEnabled = initialEffectsEnabled;
+
     const enable = () => {
       this.enable();
     };
@@ -63,7 +67,38 @@ export class AudioMixer {
     }
     void this.context.resume();
     this.enabled = true;
-    this.initializeEngineSound();
+    if (this.effectsEnabled) {
+      this.initializeEngineSound();
+    }
+  }
+
+  public areEffectsEnabled(): boolean {
+    return this.effectsEnabled;
+  }
+
+  public setEffectsEnabled(enabled: boolean): void {
+    if (this.effectsEnabled === enabled) {
+      return;
+    }
+
+    this.effectsEnabled = enabled;
+    if (!enabled) {
+      this.stopEngineSound();
+      this.honkSound.pause();
+      this.honkSound.currentTime = 0;
+      this.mgShotSound.pause();
+      this.mgShotSound.currentTime = 0;
+      this.stopCurrentGameMusicElement();
+      return;
+    }
+
+    if (this.enabled) {
+      this.initializeEngineSound();
+    }
+
+    if (this.gameMusicRequested && !this.currentGameMusic) {
+      this.playCurrentGameMusic();
+    }
   }
 
   private initializeEngineSound(): void {
@@ -97,7 +132,7 @@ export class AudioMixer {
   }
 
   public updateEngineSound(speed: number, maxSpeed: number): void {
-    if (!this.enabled || !this.context || !this.engineOscillator || !this.engineGain || !this.engineWhine || !this.engineWhineGain) {
+    if (!this.effectsEnabled || !this.enabled || !this.context || !this.engineOscillator || !this.engineGain || !this.engineWhine || !this.engineWhineGain) {
       return;
     }
 
@@ -139,11 +174,17 @@ export class AudioMixer {
   }
 
   public startGameMusic(): void {
+    this.gameMusicRequested = true;
+    if (!this.effectsEnabled) {
+      return;
+    }
+
     this.generateShuffledGameMusic();
     this.playCurrentGameMusic();
   }
 
   public stopGameMusic(): void {
+    this.gameMusicRequested = false;
     this.stopCurrentGameMusicElement();
     this.shuffledGameMusic = [];
     this.currentGameMusicIndex = 0;
@@ -161,6 +202,10 @@ export class AudioMixer {
   }
 
   private playCurrentGameMusic(): void {
+    if (!this.effectsEnabled || !this.gameMusicRequested) {
+      return;
+    }
+
     if (this.shuffledGameMusic.length === 0) {
       this.generateShuffledGameMusic();
     }
@@ -182,6 +227,10 @@ export class AudioMixer {
   }
 
   private onGameMusicEnded = (): void => {
+    if (!this.effectsEnabled || !this.gameMusicRequested) {
+      return;
+    }
+
     if (this.shuffledGameMusic.length === 0) {
       this.generateShuffledGameMusic();
     }
@@ -205,7 +254,7 @@ export class AudioMixer {
   }
 
   public playEvents(events: WorldEvent[]): void {
-    if (!this.enabled || !this.context) {
+    if (!this.effectsEnabled || !this.enabled || !this.context) {
       return;
     }
 
@@ -260,7 +309,7 @@ export class AudioMixer {
   }
 
   public playScrapeSound(): void {
-    if (!this.context || !this.enabled) {
+    if (!this.effectsEnabled || !this.context || !this.enabled) {
       return;
     }
 
@@ -302,6 +351,10 @@ export class AudioMixer {
   }
 
   private playAudioSample(audio: HTMLAudioElement): void {
+    if (!this.effectsEnabled) {
+      return;
+    }
+
     audio.currentTime = 0;
     void audio.play().catch(() => undefined);
   }
@@ -312,7 +365,7 @@ export class AudioMixer {
     type: OscillatorType,
     gainValue: number
   ): void {
-    if (!this.context) {
+    if (!this.effectsEnabled || !this.context) {
       return;
     }
 

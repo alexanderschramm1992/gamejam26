@@ -30,8 +30,9 @@ import {
 const canvas = document.getElementById("game") as HTMLCanvasElement | null;
 const statusEl = document.getElementById("status");
 const feedEl = document.getElementById("feed");
+const sfxToggleButton = document.getElementById("sfx-toggle-button") as HTMLButtonElement | null;
 
-if (!canvas || !statusEl || !feedEl) {
+if (!canvas || !statusEl || !feedEl || !sfxToggleButton) {
   throw new Error("Missing client DOM nodes.");
 }
 
@@ -42,7 +43,8 @@ if (!context) {
 
 const socket: Socket<ServerEvents, ClientEvents> = io();
 const input = new InputController(canvas);
-const audio = new AudioMixer();
+let effectsEnabled: boolean = GAME_CONFIG.audio.effectsEnabled;
+const audio = new AudioMixer(effectsEnabled);
 const adminMenu = new AdminMenu();
 const vehicleMenu = new VehicleSelectionMenu();
 const gameOverOverlay = new GameOverOverlay();
@@ -75,6 +77,13 @@ let lastTick = 0;
 let lastTickTime = 0;
 let lastInputSentAtMs = 0;
 let lastSentInput: PlayerInput | null = null;
+
+const syncSfxToggleButton = (): void => {
+  const enabled = audio.areEffectsEnabled();
+  sfxToggleButton.textContent = enabled ? "Audio: ON" : "Audio: OFF";
+  sfxToggleButton.setAttribute("aria-pressed", String(enabled));
+  sfxToggleButton.classList.toggle("is-off", !enabled);
+};
 
 const getViewportSize = (): { width: number; height: number } => ({
   width: Math.max(640, Math.floor(canvas.clientWidth || window.innerWidth)),
@@ -398,6 +407,12 @@ window.addEventListener("blur", () => {
   setAdminMenuOpen(false);
 });
 
+sfxToggleButton.addEventListener("click", () => {
+  effectsEnabled = !effectsEnabled;
+  audio.setEffectsEnabled(effectsEnabled);
+  syncSfxToggleButton();
+});
+
 const loop = (): void => {
   const nowMs = performance.now();
   
@@ -461,6 +476,7 @@ window.addEventListener("resize", resize);
 resize();
 updateOverlay();
 updateInputEnabled();
+syncSfxToggleButton();
 vehicleMenu.setOpen(true);
 loadCarAsset().catch((error: unknown) => console.warn("Car asset loading failed, using fallback:", error));
 loadStreetTiles().catch((error: unknown) => console.warn("Street tiles loading failed, using fallback:", error));

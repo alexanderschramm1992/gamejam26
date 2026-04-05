@@ -108,6 +108,9 @@ export const GAME_CONFIG = {
   },
   ui: {
     feedEventCount: 6
+  },
+  audio: {
+    effectsEnabled: true
   }
 } as const;
 
