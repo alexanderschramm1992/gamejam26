@@ -72,7 +72,7 @@ const tireTrackManager = new TireTrackManager();
 // Debug overlay variables
 let lastFrameTime = 0;
 let fps = 0;
-let serverTickRate = 0;
+let serverTickTime = 0;
 let lastTick = 0;
 let lastTickTime = 0;
 let lastInputSentAtMs = 0;
@@ -352,7 +352,7 @@ socket.on("snapshot", (nextSnapshot) => {
     const tickDelta = nextSnapshot.tick - lastTick;
     const timeDelta = nowMs - lastTickTime;
     if (timeDelta > 0) {
-      serverTickRate = (tickDelta / timeDelta) * 1000; // ticks per second
+      serverTickTime = (tickDelta / timeDelta) * 1000;
     }
   }
   lastTick = nextSnapshot.tick;
@@ -460,7 +460,9 @@ const loop = (): void => {
       explosionEffects,
       tireTracks,
       nowMs,
-      aimAngle
+      aimAngle,
+      fps,
+      serverTickTime
     );
   } else {
     const viewport = getViewportSize();

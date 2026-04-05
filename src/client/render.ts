@@ -645,7 +645,7 @@ export const renderGame = (
   nowMs = performance.now(),
   localPlayerAimAngle = 0,
   fps = 0,
-  serverTickRate = 0
+  serverTickTime = 0
 ): void => {
   const width = canvas.width / window.devicePixelRatio;
   const height = canvas.height / window.devicePixelRatio;
@@ -992,8 +992,8 @@ export const renderGame = (
   ctx.fillText("Debug", width - 202, 44);
   ctx.font = "12px Trebuchet MS";
   ctx.fillStyle = "#9bb3c5";
-  ctx.fillText(`FPS: ${fps.toFixed(1)}`, width - 202, 62);
-  ctx.fillText(`Server TPS: ${serverTickRate.toFixed(1)}`, width - 202, 78);
+  ctx.fillText(`Frames per Second: ${fps.toFixed(1)}`, width - 202, 62);
+  ctx.fillText(`Server Tick Time: ${serverTickTime.toFixed(1)}`, width - 202, 78);
 
   // Render victory modal if there's a winner
   if (snapshot.team.winnerPlayerId && snapshot.team.winnerName) {
