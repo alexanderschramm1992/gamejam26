@@ -19,6 +19,7 @@ export class VehicleSelectionMenu {
   private readonly root: HTMLDivElement;
   private readonly cards = new Map<string, VehicleCardElements>();
   private readonly nameEl: HTMLHeadingElement;
+  private readonly descriptionEl: HTMLParagraphElement;
   private readonly nameInput: HTMLInputElement;
   private readonly statRows = new Map<keyof VehicleOption["stats"], HTMLDivElement>();
   private readonly confirmButton: HTMLButtonElement;
@@ -122,16 +123,22 @@ export class VehicleSelectionMenu {
     const details = document.createElement("div");
     details.className = "vehicle-menu__details";
 
+    const summary = document.createElement("div");
+    summary.className = "vehicle-menu__summary";
+
     this.nameEl = document.createElement("h3");
     this.nameEl.className = "vehicle-menu__name";
+
+    this.descriptionEl = document.createElement("p");
+    this.descriptionEl.className = "vehicle-menu__description";
 
     const stats = document.createElement("div");
     stats.className = "vehicle-menu__stats";
 
     const statLabels: Array<[keyof VehicleOption["stats"], string]> = [
       ["speed", "Speed"],
-      ["handling", "Handling"],
-      ["boost", "Boost"]
+      ["battery", "Battery"],
+      ["hull", "Hull"]
     ];
 
     for (const [key, label] of statLabels) {
@@ -160,7 +167,8 @@ export class VehicleSelectionMenu {
     this.confirmButton.textContent = "Fahrzeug bestaetigen";
     this.confirmButton.addEventListener("click", () => this.confirmSelection());
 
-    details.append(this.nameEl, stats, this.confirmButton);
+    summary.append(this.nameEl, this.descriptionEl, stats);
+    details.append(summary, this.confirmButton);
     panel.append(eyebrow, title, intro, form, stage, details);
     this.root.appendChild(panel);
     (document.querySelector(".shell") ?? document.body).appendChild(this.root);
@@ -304,11 +312,12 @@ export class VehicleSelectionMenu {
   private render(): void {
     const activeVehicle = this.getSelectedVehicle();
     this.nameEl.textContent = activeVehicle.name;
+    this.descriptionEl.textContent = activeVehicle.descriptions;
     this.confirmButton.style.setProperty("--vehicle-accent", activeVehicle.accent);
 
     for (const [statKey, fill] of this.statRows) {
       const statValue = activeVehicle.stats[statKey];
-      fill.style.width = `${clamp(statValue, 0, 100)}%`;
+      fill.style.width = `${clamp(statValue, 0, 200) / 2}%`;
       fill.style.setProperty("--vehicle-accent", activeVehicle.accent);
     }
 

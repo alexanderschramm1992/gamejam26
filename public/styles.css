@@ -562,11 +562,24 @@ body {
   margin-top: 8px;
 }
 
+.vehicle-menu__summary {
+  display: grid;
+  gap: 14px;
+}
+
 .vehicle-menu__name {
   margin: 0 0 16px;
   font-size: clamp(1.4rem, 2vw, 2.2rem);
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.vehicle-menu__description {
+  margin: -6px 0 4px;
+  max-width: 62ch;
+  color: var(--muted);
+  font-size: 0.98rem;
+  line-height: 1.55;
 }
 
 .vehicle-menu__stats {
@@ -594,6 +607,18 @@ body {
   overflow: hidden;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
+}
+
+.vehicle-stat__meter::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  left: calc(50% - 1px);
+  width: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  pointer-events: none;
 }
 
 .vehicle-stat__fill {

@@ -1,7 +1,7 @@
 export interface VehicleSelectionStats {
   speed: number;
-  handling: number;
-  boost: number;
+  battery: number;
+  hull: number;
 }
 
 export interface VehicleOption {
@@ -9,43 +9,49 @@ export interface VehicleOption {
   name: string;
   assetPath: string;
   accent: string;
+  descriptions: string;
   stats: VehicleSelectionStats;
 }
 
 export const VEHICLE_OPTIONS: VehicleOption[] = [
   {
     id: "car-blue",
-    name: "Car Azure",
+    name: "Azure",
     assetPath: "/assets/cars/CarBlue.png",
     accent: "#58f0ff",
-    stats: { speed: 82, handling: 74, boost: 61 }
+    descriptions: "Ein ausgewogener Allrounder.",
+    stats: { speed: 100, battery: 100, hull: 100 }
   },
   {
     id: "car-green",
-    name: "Car Verge",
+    name: "Verge",
     assetPath: "/assets/cars/CarGreen.png",
     accent: "#9ef07f",
-    stats: { speed: 70, handling: 88, boost: 64 }
+    descriptions: "Der Wagen setzt auf Top Speed zu Lasten von Batterie und Stabilität.",
+    stats: { speed: 120, battery: 90, hull: 90 }
   },
   {
     id: "car-orange",
-    name: "Car Ember",
+    name: "Ember",
     assetPath: "/assets/cars/CarOrange.png",
     accent: "#ffb347",
-    stats: { speed: 91, handling: 68, boost: 73 }
+    descriptions: "Gebaut für hohe Batterielaufzeit zu Lasten von Höchstgeschwindigkeit und Stabilität.",
+    stats: { speed: 90, battery: 120, hull: 90 }
   },
   {
     id: "car-purple",
-    name: "Car Pulse",
+    name: "Pulse",
     assetPath: "/assets/cars/CarPurple.png",
     accent: "#d38cff",
-    stats: { speed: 78, handling: 80, boost: 86 }
+    descriptions: "Ein schweres stabiles Chassis, zu Lasten der Höchstgeschwindigkeit und Batterie Größe.",
+    stats: { speed: 90, battery: 90, hull: 120 }
   },
   {
     id: "car-yellow",
-    name: "Car Solar",
+    name: "Solar",
     assetPath: "/assets/cars/CarYellow.png",
     accent: "#ffe36a",
-    stats: { speed: 84, handling: 72, boost: 92 }
+    descriptions: "Du willst einen Speedrun Rekord aufstellen, dass ist das dein Wagen!",
+    stats: { speed: 110, battery: 110, hull: 80 }
   }
 ];
